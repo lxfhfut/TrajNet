@@ -65,6 +65,7 @@ class TrainingVisualizer:
         self.ax2.set_ylabel('Accuracy (%)')
         self.ax2.plot(self.val_accuracies, 'r-', label="Validation Acc.")
         self.ax2.plot(self.train_accuracies, 'm--', label="Training Acc.")
+        self.ax2.legend()
         
         # Redraw
         plt.tight_layout()

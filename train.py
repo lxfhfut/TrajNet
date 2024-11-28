@@ -15,6 +15,7 @@ def test_model(model, dataloader):
     model.eval()
     all_preds = []
     all_labels = []
+    wrong_predictions = []
 
     with torch.no_grad():
         for padded_trajectories, traj_lengths, video_lengths, batch_labels, video_ids in dataloader:
@@ -22,12 +23,16 @@ def test_model(model, dataloader):
 
             # Convert outputs to predictions
             preds = (outputs.squeeze() >= 0.5).float()
-            all_preds.extend(preds.cpu().numpy())
-            all_labels.extend(batch_labels.cpu().numpy())
-            labels = batch_labels.cpu().numpy()
-            wrong_idx = np.where(np.abs(preds - labels) > 0.5)[0]
+            batch_preds = preds.cpu().numpy()
+            batch_labels = batch_labels.cpu().numpy()
+            all_preds.extend(batch_preds)
+            all_labels.extend(batch_labels)
+            wrong_idx = np.where(np.abs(batch_preds - batch_labels) > 0.5)[0]
             for idx in wrong_idx:
-                print(f"{video_ids[idx]}: predicted {preds[idx]}, ground-truth: {labels[idx]}.")
+                print(f"Video ID: {video_ids[idx]}")
+                print(f"Predicted: {batch_preds[idx]:.0f} (confidence: {outputs.squeeze()[idx].item():.3f})")
+                print(f"Ground Truth: {batch_labels[idx]}")
+                print("-" * 30)
 
     # Calculate metrics
     metrics = {
@@ -103,6 +108,10 @@ def train_model(model, train_loader, val_loader, num_epochs=10, learning_rate=0.
         weight_decay=config['weight_decay']
     )
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', patience=10, factor=0.8)
+    # scheduler = torch.optim.lr_scheduler.OneCycleLR(
+    #     optimizer, learning_rate,
+    #     epochs=num_epochs, steps_per_epoch=len(train_loader))
+    # scheduler = torch.optim.lr_scheduler.CyclicLR(optimizer, base_lr=0.0001, max_lr=0.05, mode='exp_range')
     visualizer = TrainingVisualizer(num_epochs)
     best_accuracy = 0
     best_model_state = None
@@ -119,7 +128,6 @@ def train_model(model, train_loader, val_loader, num_epochs=10, learning_rate=0.
             
             # Forward pass
             outputs = model((padded_trajectories, traj_lengths, video_lengths))
-            
             loss = criterion(outputs.squeeze(), batch_labels.float())
             loss.backward()
             optimizer.step()
@@ -144,6 +152,7 @@ def train_model(model, train_loader, val_loader, num_epochs=10, learning_rate=0.
         val_metrics = evaluate_model(model, val_loader, criterion)
 
         scheduler.step(val_metrics['loss'])
+        # scheduler.step()
         
         # Update visualization
         visualizer.update(train_metrics['loss'], val_metrics['loss'],
@@ -161,14 +170,14 @@ def train_model(model, train_loader, val_loader, num_epochs=10, learning_rate=0.
                 'train_accuracy': train_metrics['accuracy']
             }
     time_stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    visualizer.save(f'training_results_{time_stamp}.png')
+    visualizer.save(f'ckpts/training_results_{time_stamp}.png')
     # Restore best model
     if best_model_state is not None:
         model.load_state_dict(best_model_state['model_state_dict'])
         # model.load_state_dict(best_model_state)
         torch.save({
             'model_state_dict': model.state_dict(),
-        }, f'best_model_{time_stamp}.pt')
+        }, f'ckpts/best_model_{time_stamp}.pt')
 
     return model
 
@@ -185,8 +194,9 @@ if __name__ == "__main__":
     val_dataloader = DataLoader(val_dataset, batch_size=4, shuffle=False, collate_fn=val_dataset.collate_fn)
 
     model = VideoClassifier(n_features=32, max_sequence_length=20, sample_attention="single")
-    best_model = train_model(model, train_dataloader, val_dataloader, num_epochs=1000, learning_rate=0.01)
+    best_model = train_model(model, train_dataloader, val_dataloader, num_epochs=300, learning_rate=0.01)
     # time_stamp = strftime('%Y-%m-%d-%H-%M-%S', gmtime())
     # torch.save(best_model.state_dict(), f"/Users/lxfhfut/Dropbox/Garvan/CBVCC/ckpts/Complete_Model_{time_stamp}.pth")
     results = test_model(best_model, val_dataloader)
-    print(results)
+    for k, v in results.items():
+        print(f"{k}: {v:.4f}")

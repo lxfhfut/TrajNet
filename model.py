@@ -91,12 +91,13 @@ class SampleAttention(nn.Module):
     """Weight different samples from each video"""
     def __init__(self, input_dim, attention_type='single'):
         super().__init__()
+        self.input_dim = input_dim
         self.attention_type = attention_type
         
         if attention_type == 'single':
             self.attention = nn.Sequential(
                 nn.Linear(input_dim, 128),
-                nn.Tanh(),
+                # nn.Tanh(),
                 nn.Linear(128, 1)
             )
         
@@ -114,6 +115,13 @@ class SampleAttention(nn.Module):
             self.key = nn.Linear(input_dim, input_dim)
     
     def forward(self, x):
+        # Handle empty sequence case
+        if x.size(0) == 0:  # Empty sequence
+            if self.attention_type == 'single':
+                return torch.zeros(self.input_dim, device=x.device)
+            else:  # multi_head or scaled_dot
+                return torch.zeros(self.input_dim, device=x.device)
+
         if self.attention_type == 'single':
             weights = self.attention(x)
             weights = F.softmax(weights, dim=0)
@@ -123,7 +131,7 @@ class SampleAttention(nn.Module):
             # Add batch dimension if not present
             if x.dim() == 2:
                 x = x.unsqueeze(0)  # [1, seq_len, feature_dim]
-            
+
             batch_size, seq_len, _ = x.size()
             
             # Split into multiple heads

@@ -12,14 +12,14 @@ class TrajFeatNet(nn.Module):
         # Convolutional feature extraction layers
         self.conv_layers = nn.ModuleList([
             nn.Conv1d(3, 16, kernel_size=3, padding=1),
-            # nn.Conv1d(16, 32, kernel_size=3, padding=1),
+            nn.Conv1d(16, 32, kernel_size=3, padding=1),
             # nn.Conv1d(32, 64, kernel_size=3, padding=1)
         ])
         
         # Batch normalization layers
         self.batch_norms = nn.ModuleList([
             nn.BatchNorm1d(16),
-            # nn.BatchNorm1d(32),
+            nn.BatchNorm1d(32),
             # nn.BatchNorm1d(64)
         ])
         
@@ -32,7 +32,7 @@ class TrajFeatNet(nn.Module):
         
         # Final feature extraction
         self.feature_extractor = nn.Sequential(
-            nn.Linear(32, n_features),
+            nn.Linear(64, n_features),
             nn.ReLU(),
             nn.Dropout(0.5)
         )
@@ -97,7 +97,7 @@ class SampleAttention(nn.Module):
         if attention_type == 'single':
             self.attention = nn.Sequential(
                 nn.Linear(input_dim, 128),
-                # nn.Tanh(),
+                nn.Tanh(),
                 nn.Linear(128, 1)
             )
         

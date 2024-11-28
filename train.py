@@ -15,7 +15,6 @@ def test_model(model, dataloader):
     model.eval()
     all_preds = []
     all_labels = []
-    wrong_predictions = []
 
     with torch.no_grad():
         for padded_trajectories, traj_lengths, video_lengths, batch_labels, video_ids in dataloader:
@@ -107,10 +106,10 @@ def train_model(model, train_loader, val_loader, num_epochs=10, learning_rate=0.
         momentum=config['momentum'],
         weight_decay=config['weight_decay']
     )
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', patience=10, factor=0.8)
-    # scheduler = torch.optim.lr_scheduler.OneCycleLR(
-    #     optimizer, learning_rate,
-    #     epochs=num_epochs, steps_per_epoch=len(train_loader))
+    # scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', patience=10, factor=0.8)
+    scheduler = torch.optim.lr_scheduler.OneCycleLR(
+        optimizer, learning_rate,
+        epochs=num_epochs, steps_per_epoch=len(train_loader))
     # scheduler = torch.optim.lr_scheduler.CyclicLR(optimizer, base_lr=0.0001, max_lr=0.05, mode='exp_range')
     visualizer = TrainingVisualizer(num_epochs)
     best_accuracy = 0
@@ -151,8 +150,8 @@ def train_model(model, train_loader, val_loader, num_epochs=10, learning_rate=0.
         # Validation phase
         val_metrics = evaluate_model(model, val_loader, criterion)
 
-        scheduler.step(val_metrics['loss'])
-        # scheduler.step()
+        # scheduler.step(val_metrics['loss'])
+        scheduler.step()
         
         # Update visualization
         visualizer.update(train_metrics['loss'], val_metrics['loss'],
@@ -193,10 +192,13 @@ if __name__ == "__main__":
     val_dataset = TrajPointDataset(data_dir, anno_dir, split="testing")
     val_dataloader = DataLoader(val_dataset, batch_size=4, shuffle=False, collate_fn=val_dataset.collate_fn)
 
-    model = VideoClassifier(n_features=32, max_sequence_length=20, sample_attention="single")
-    best_model = train_model(model, train_dataloader, val_dataloader, num_epochs=300, learning_rate=0.01)
+    # model = VideoClassifier(n_features=32, max_sequence_length=20, sample_attention="single")
+    # best_model = train_model(model, train_dataloader, val_dataloader, num_epochs=500, learning_rate=0.01)
     # time_stamp = strftime('%Y-%m-%d-%H-%M-%S', gmtime())
     # torch.save(best_model.state_dict(), f"/Users/lxfhfut/Dropbox/Garvan/CBVCC/ckpts/Complete_Model_{time_stamp}.pth")
+
+    best_model = VideoClassifier(n_features=32, max_sequence_length=20, sample_attention="single")
+    best_model.load_state_dict(torch.load("ckpts/best_model_20241128_144647.pt")["model_state_dict"])
     results = test_model(best_model, val_dataloader)
     for k, v in results.items():
         print(f"{k}: {v:.4f}")

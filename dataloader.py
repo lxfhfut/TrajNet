@@ -15,9 +15,11 @@ class TrajPointDataset(Dataset):
         if augment:
             self.rotation_angle = 15
             self.scale_range = (0.9, 1.1)
-            self.noise_level = 0.02
+            self.noise_level = 0.5
             self.reverse_prob = 0.3
             self.speed_range = (0.9, 1.1)
+            self.interp_prob = 0.5
+            self.max_points_to_add = 5
 
         # Load data
         annotations = pd.read_csv(osp.join(anno_dir, "train.csv" if split == "training" else "test.csv"))
@@ -60,6 +62,35 @@ class TrajPointDataset(Dataset):
     def __len__(self):
         return len(self.labels)
 
+    def _interp_trajectory(self, traj):
+        if len(traj) >= self.max_length:
+            return traj
+
+        available_slots = self.max_length - len(traj)
+        num_points_to_add = np.random.randint(1, min(self.max_points_to_add + 1, available_slots + 1))
+
+        # Randomly select positions to interpolate
+        possible_positions = list(range(len(traj) - 1))
+        if not possible_positions:  # If trajectory has only one point
+            return traj
+
+        positions_to_interpolate = np.random.choice(
+            possible_positions,
+            size=min(num_points_to_add, len(possible_positions)),
+            replace=False
+        )
+        # print(f"Before interp.: {traj}")
+        new_trajectory = []
+        for i in range(len(traj)):
+            new_trajectory.append(traj[i])
+            if i in positions_to_interpolate:
+                # Linear interpolation between current and next point
+                t = np.random.random()  # Random point between 0 and 1
+                interp_point = t * traj[i] + (1 - t) * traj[i + 1]
+                new_trajectory.append(interp_point)
+        # print(f"After interp.: {torch.stack(new_trajectory)}")
+        return torch.stack(new_trajectory)
+
     def _rotate_trajectory(self, traj):
         """Randomly rotate trajectory in 2D space"""
         angle = np.random.uniform(-self.rotation_angle, self.rotation_angle)
@@ -84,9 +115,13 @@ class TrajPointDataset(Dataset):
 
     def _add_noise(self, traj):
         """Add Gaussian noise to spatial coordinates"""
+        # print(f"Before noise.: {traj}")
         noise = torch.randn_like(traj[:, 1:]) * self.noise_level
         noisy_traj = traj.clone()
         noisy_traj[:, 1:] += noise
+        noisy_traj[:, 1:] = torch.clamp(noisy_traj[:, 1:], min=0.0)
+        # print(f"After noise.: {noisy_traj}")
+
         return noisy_traj
 
     def _reverse_time(self, traj):
@@ -111,9 +146,10 @@ class TrajPointDataset(Dataset):
         augmentations = [
             (self._rotate_trajectory, 0.5),
             (self._scale_trajectory, 0.5),
-            (self._add_noise, 0.5),
+            # (self._add_noise, 0.5),
             (self._reverse_time, 0.3),
-            (self._modify_speed, 0.3)
+            (self._modify_speed, 0.3),
+            (self._interp_trajectory, 0.3)
         ]
 
         for aug_fn, prob in augmentations:

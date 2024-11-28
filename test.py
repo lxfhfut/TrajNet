@@ -138,12 +138,12 @@ def train_model(model, train_loader, val_loader, num_epochs=10, learning_rate=0.
 
     # Save the visualization
     time_stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    visualizer.save(f'training_results_{time_stamp}.png')
+    visualizer.save(f'ckpts/training_results_{time_stamp}.png')
 
     # Restore best model and save it
     if best_model_state is not None:
         model.load_state_dict(best_model_state['model_state_dict'])
-        save_path = f'best_model_{time_stamp}.pt'
+        save_path = f'ckpts/best_model_{time_stamp}.pt'
         torch.save(best_model_state, save_path)
         print(f"Best model saved to {save_path}")
         print(f"Best validation accuracy: {best_model_state['val_accuracy']:.4f} "

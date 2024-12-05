@@ -1,4 +1,4 @@
-# Cell Behavior Video Classification (CBVCC)
+# Cell Behavior Video Classification Challenge (CBVCC)
 
 A deep learning-based tool for analyzing and classifying cell behavior in microscopy videos. This tool performs cell segmentation, tracking, and classification using a combination of custom deep learning models.
 

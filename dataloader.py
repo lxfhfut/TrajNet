@@ -7,7 +7,7 @@ from torch.utils.data import Dataset
 
 
 class TrajPointDataset(Dataset):
-    def __init__(self, data_dir, anno_dir, split, max_length=20, augment=False):
+    def __init__(self, data_dir, split=None, max_length=20, augment=False):
         self.max_length = max_length
         self.augment = augment
 
@@ -22,7 +22,7 @@ class TrajPointDataset(Dataset):
             self.max_points_to_add = 5
 
         # Load data
-        annotations = pd.read_csv(osp.join(anno_dir, "train.csv" if split == "training" else "test.csv"))
+        annotations = pd.read_csv(osp.join(osp.dirname(osp.dirname(data_dir)), "train.csv" if split == "training" else "test.csv"))
         vids = [f.name for f in os.scandir(data_dir) if f.is_dir()]
         video_data = []
         labels = []
@@ -197,6 +197,7 @@ def prepare_batch(batch, max_length=20):
         for i, traj in enumerate(video_trajs):
             length = lengths[i]
             padded[i, :length] = traj[:max_length]  # Truncate if longer than max_length
+            padded[i, length:] = traj[length-1]
 
         padded_trajectories.append(padded)
         traj_lengths.append(lengths)

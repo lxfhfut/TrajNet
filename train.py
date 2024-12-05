@@ -1,3 +1,4 @@
+import os
 import torch
 import torch.optim as optim
 import numpy as np
@@ -5,7 +6,7 @@ import torch.nn as nn
 from datetime import datetime
 from time import gmtime, strftime
 from model import VideoClassifier
-from visualize import TrainingVisualizer
+from utils import TrainingVisualizer
 from dataloader import TrajPointDataset
 from torch.utils.data import DataLoader
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
@@ -21,7 +22,8 @@ def test_model(model, dataloader):
             outputs = model((padded_trajectories, traj_lengths, video_lengths))
 
             # Convert outputs to predictions
-            preds = (outputs.squeeze() >= 0.5).float()
+            outputs = torch.atleast_1d(outputs.squeeze())
+            preds = (outputs >= 0.5).float()
             batch_preds = preds.cpu().numpy()
             batch_labels = batch_labels.cpu().numpy()
             all_preds.extend(batch_preds)
@@ -29,7 +31,7 @@ def test_model(model, dataloader):
             wrong_idx = np.where(np.abs(batch_preds - batch_labels) > 0.5)[0]
             for idx in wrong_idx:
                 print(f"Video ID: {video_ids[idx]}")
-                print(f"Predicted: {batch_preds[idx]:.0f} (confidence: {outputs.squeeze()[idx].item():.3f})")
+                print(f"Predicted: {batch_preds[idx]:.0f} (confidence: {outputs[idx].item():.3f})")
                 print(f"Ground Truth: {batch_labels[idx]}")
                 print("-" * 30)
 
@@ -77,7 +79,7 @@ def evaluate_model(model, dataloader, criterion):
     return metrics
 
 
-def train_model(model, train_loader, val_loader, num_epochs=10, learning_rate=0.001):
+def train_model(model, train_loader, val_loader, num_epochs=10, learning_rate=0.001, save_dir=None):
     """
     Training loop for the trajectory feature extractor
     
@@ -86,7 +88,7 @@ def train_model(model, train_loader, val_loader, num_epochs=10, learning_rate=0.
         num_epochs: Number of training epochs
         learning_rate: Learning rate for optimization
     """
-
+    out_dir = "./ckpts/" if save_dir is None else save_dir
     criterion = nn.BCELoss()
     
     # Initialize optimizer
@@ -127,7 +129,7 @@ def train_model(model, train_loader, val_loader, num_epochs=10, learning_rate=0.
             
             # Forward pass
             outputs = model((padded_trajectories, traj_lengths, video_lengths))
-            loss = criterion(outputs.squeeze(), batch_labels.float())
+            loss = criterion(outputs.squeeze(dim=-1), batch_labels.float())
             loss.backward()
             optimizer.step()
             
@@ -135,7 +137,7 @@ def train_model(model, train_loader, val_loader, num_epochs=10, learning_rate=0.
             
             # Collect predictions for metrics
             preds = (outputs.squeeze() >= 0.5).float()
-            all_train_preds.extend(preds.cpu().numpy())
+            all_train_preds.extend(np.atleast_1d(preds.cpu().numpy()))
             all_train_labels.extend(batch_labels.cpu().numpy())
         
         # Calculate training metrics
@@ -169,14 +171,14 @@ def train_model(model, train_loader, val_loader, num_epochs=10, learning_rate=0.
                 'train_accuracy': train_metrics['accuracy']
             }
     time_stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    visualizer.save(f'ckpts/training_results_{time_stamp}.png')
+    visualizer.save(os.path.join(out_dir, f'training_results_{time_stamp}.png'))
     # Restore best model
     if best_model_state is not None:
         model.load_state_dict(best_model_state['model_state_dict'])
         # model.load_state_dict(best_model_state)
         torch.save({
             'model_state_dict': model.state_dict(),
-        }, f'ckpts/best_model_{time_stamp}.pt')
+        }, os.path.join(out_dir, f'best_model_{time_stamp}.pt'))
 
     return model
 
@@ -186,19 +188,23 @@ if __name__ == "__main__":
     data_dir = "/Users/lxfhfut/Dropbox/Garvan/CBVCC/tif/cytotorch_0"
     anno_dir = "/Users/lxfhfut/Dropbox/Garvan/CBVCC/dataset/"
 
-    train_dataset = TrajPointDataset(data_dir, anno_dir, split="training", augment=True)
-    train_dataloader = DataLoader(train_dataset, batch_size=4, shuffle=True, collate_fn=train_dataset.collate_fn)
+    train_dataset = TrajPointDataset(data_dir, split="training", augment=True)
+    train_dataloader = DataLoader(train_dataset, batch_size=32, shuffle=True, collate_fn=train_dataset.collate_fn)
 
-    val_dataset = TrajPointDataset(data_dir, anno_dir, split="testing")
+    val_dataset = TrajPointDataset(data_dir, split="testing")
     val_dataloader = DataLoader(val_dataset, batch_size=4, shuffle=False, collate_fn=val_dataset.collate_fn)
 
-    # model = VideoClassifier(n_features=32, max_sequence_length=20, sample_attention="single")
-    # best_model = train_model(model, train_dataloader, val_dataloader, num_epochs=500, learning_rate=0.01)
-    # time_stamp = strftime('%Y-%m-%d-%H-%M-%S', gmtime())
-    # torch.save(best_model.state_dict(), f"/Users/lxfhfut/Dropbox/Garvan/CBVCC/ckpts/Complete_Model_{time_stamp}.pth")
+    model = VideoClassifier(n_features=64, max_sequence_length=20, sample_attention="single")
+    best_model = train_model(model, train_dataloader, val_dataloader, num_epochs=1000, learning_rate=0.005)
 
-    best_model = VideoClassifier(n_features=32, max_sequence_length=20, sample_attention="single")
-    best_model.load_state_dict(torch.load("ckpts/best_model_20241128_144647.pt")["model_state_dict"])
+    # best_model = VideoClassifier(n_features=32, max_sequence_length=20, sample_attention="single")
+    # best_model.load_state_dict(torch.load("ckpts/best_model_20241128_144647tick.pt")["model_state_dict"])
+    results = test_model(best_model, train_dataloader)
+    for k, v in results.items():
+        print(f"{k}: {v:.4f}")
+
     results = test_model(best_model, val_dataloader)
     for k, v in results.items():
         print(f"{k}: {v:.4f}")
+
+

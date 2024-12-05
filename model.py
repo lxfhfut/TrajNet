@@ -165,7 +165,7 @@ class SampleAttention(nn.Module):
 
 
 class VideoClassifier(nn.Module):
-    def __init__(self, n_features=32, max_sequence_length=20, sample_attention='multi_head'):
+    def __init__(self, n_features=32, max_sequence_length=20, sample_attention='single'):
         super().__init__()
 
         self.feat_extractor = TrajFeatNet(n_features, max_sequence_length)

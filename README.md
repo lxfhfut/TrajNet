@@ -12,7 +12,7 @@ A deep learning-based tool for analyzing and classifying cell behavior in micros
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/your-username/cbvcc.git
+git clone https://github.com/lxfhfut/TrajNet.git
 cd cbvcc
 ```
 

@@ -1,0 +1,3 @@
+ID,Track Displacement,Track Duration,Track Length,Track Speed Max,Track Speed Mean,Track Speed StdDev,Track Speed Variation,Track Veloc Mean,Track Acceleration,Track Direction Change Mean,Track Direction Change Max,Track Curvature Mean,Track Curvature Max,Track Angular Velocity Mean,Track Angular Velocity Max,Track Tortuosity
+0,27.1569,8,29.8366,7.2026,4.2624,2.4256,0.5691,4.2624,0.2985,0.3644,0.9283,10.1892,34.9373,0.3644,0.9283,1.0987
+1,9.4365,4,9.4717,3.8334,3.1572,0.7738,0.2451,3.1572,0.1346,0.1803,0.2307,5.2358,6.9376,0.1803,0.2307,1.0037

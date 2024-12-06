@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 
 
 class TrainingVisualizer:
-    def __init__(self):
+    def __init__(self, num_epochs):
         # Prepare figure with subplots
         self.fig, (self.ax1, self.ax2) = plt.subplots(2, 1, figsize=(10, 10))
         self.fig.suptitle('Training and Validation Metrics')

@@ -1,6 +1,6 @@
 # Cell Behavior Video Classification Challenge (CBVCC)
 
-A deep learning-based tool for analyzing and classifying cell behavior in microscopy videos. This tool performs cell segmentation, tracking, and classification using a combination of custom deep learning models.
+A tool for analyzing and classifying cell behavior in microscopy videos. It performs cell segmentation, tracking, and classification using a combination of custom deep learning models.
 
 ## Installation
 
@@ -13,7 +13,7 @@ A deep learning-based tool for analyzing and classifying cell behavior in micros
 1. Clone the repository:
 ```bash
 git clone https://github.com/lxfhfut/TrajNet.git
-cd cbvcc
+cd TrajNet
 ```
 
 2. Create and activate the conda environment:
@@ -32,7 +32,7 @@ Train a new model on your dataset:
 
 ```bash
 python main.py train \
-    --root_dir /path/to/dataset \
+    --root_dir ./dataset \
     --ckpt_dir ./ckpts \
     --segmenter cytotorch_0 \
     --batch_size 32
@@ -75,8 +75,8 @@ Evaluate model performance on a test dataset:
 
 ```bash
 python main.py evaluate \
-    --root_dir /path/to/test/dataset \
-    --model_path ./checkpoints/best_model.pt \
+    --root_dir ./dataset \
+    --model_path ./ckpts/best_model.pt \
     --save_dir ./results \
     --segmenter cytotorch_0 \
     --batch_size 4
@@ -96,7 +96,7 @@ Analyze and classify a single video:
 ```bash
 python main.py infer \
     --video_path /path/to/video.avi \
-    --model_path ./checkpoints/best_model.pt \
+    --model_path ./ckpts/best_model.pt \
     --save_dir ./results \
     --segmenter cytotorch_0
 ```
@@ -121,4 +121,3 @@ For each processed video, the program generates:
 
 - The default segmentation model is 'cytotorch_0'. Other Cellpose models can be specified using the `--segmenter` argument.
 - GPU acceleration is automatically used if available.
-- For best results, ensure input videos are in a format compatible with OpenCV (.avi recommended).

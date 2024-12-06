@@ -182,7 +182,7 @@ def main():
         save_dir.mkdir(parents=True, exist_ok=True)
         save_tiff_imagej_compatible(os.path.join(save_dir, vid + '_imgs.tif'), imgs, axes='TYX')
 
-        model_path = Path.cwd() / "retrained" / "cellpose_retrained_sgd.pth" \
+        model_path = Path.cwd() / "segmenter" / "cellpose_retrained_sgd.pth" \
             if args.segmenter == "cyto_retrained" else os.fspath(models.MODEL_DIR.joinpath(args.segmenter))
 
         model = models.CellposeModel(gpu=torch.cuda.is_available(),

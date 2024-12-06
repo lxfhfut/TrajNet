@@ -2,7 +2,7 @@
 Cell segmentation module using Cellpose.
 
 This module provides functionality to segment cells in microscopy videos using the Cellpose
-deep learning model. It supports both pre-trained and custom retrained models for cell detection
+deep learning model. It supports both pre-trained and custom segmenter models for cell detection
 and segmentation.
 
 The module processes video frames sequentially and generates binary masks for detected cells.
@@ -85,7 +85,7 @@ def generate_masks(model, imgs, model_name):
         np.ndarray: Array of generated masks
 
     Notes:
-        Uses different parameters for retrained vs pretrained models.
+        Uses different parameters for segmenter vs pretrained models.
     """
     masks = np.zeros_like(imgs)
 
@@ -96,7 +96,7 @@ def generate_masks(model, imgs, model_name):
         'min_size': 20  # Minimum cell size in pixels
     }
 
-    # Add diameter parameter for non-retrained models
+    # Add diameter parameter for non-segmenter models
     if model_name != "cyto_retrained":
         common_params['diameter'] = 5
 

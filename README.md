@@ -33,7 +33,7 @@ Train a new model on your dataset:
 ```bash
 python main.py train \
     --root_dir /path/to/dataset \
-    --ckpt_dir ./checkpoints \
+    --ckpt_dir ./ckpts \
     --segmenter cytotorch_0 \
     --batch_size 32
 ```
@@ -43,6 +43,30 @@ Parameters:
 - `--ckpt_dir`: Directory to save model checkpoints (default: ./ckpts)
 - `--segmenter`: Cellpose model for segmentation (default: cytotorch_0)
 - `--batch_size`: Training batch size (default: 32)
+
+
+## Expected Directory Structure
+
+```
+dataset/
+│── imgs/
+│   └── 00_1/
+│       ├── 000000.png
+│       ├── 000001.png
+│            ...
+│       └── 000019.png
+│   └── 00_2/
+├── trks/
+│   └── cytotorch_0/
+│       ├── 00_1/
+│       │   ├── video1_imgs.tif
+│       │   ├── video1_msks.tif
+│       │   └── video1_track_trajectories.csv
+│       └── 00_2/
+├── test.csv
+└── train.csv
+```
+
 ![Training Progress](./ckpts/training_results_20241129_104939.png)
 
 ### Evaluation Mode
@@ -83,20 +107,6 @@ Parameters:
 - `--save_dir`: Directory to save results (default: same as video directory)
 - `--segmenter`: Cellpose model for segmentation (default: cytotorch_0)
 
-## Expected Directory Structure
-
-```
-dataset/
-├── trks/
-│   └── cytotorch_0/
-│       ├── video1/
-│       │   ├── video1_imgs.tif
-│       │   ├── video1_msks.tif
-│       │   └── video1_track_trajectories.csv
-│       └── video2/
-├── test.csv
-└── train.csv
-```
 
 ## Output Files
 

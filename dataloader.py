@@ -8,6 +8,7 @@ from torch.utils.data import Dataset
 
 class TrajPointDataset(Dataset):
     def __init__(self, data_dir, split=None, max_length=20, augment=False):
+        self.data_dir = data_dir
         self.max_length = max_length
         self.augment = augment
 

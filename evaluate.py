@@ -163,6 +163,18 @@ def predict_and_save(model, dataloader, csv_file):
                 print(f"Ground Truth: {batch_labels[idx]}")
                 print("-" * 30)
 
+    # Add predictions for videos without tracking results, which will be classified as class '0'
+    test_df = pd.read_csv(os.path.join(os.path.dirname(os.path.dirname(dataloader.dataset.data_dir)), 'test.csv'))
+    remaining_vids = set(test_df['id'].to_numpy()) - set(all_vids)
+    num_missing = 0
+    for r_vid in remaining_vids:
+        if r_vid not in all_vids:
+            all_vids.extend(r_vid)
+            all_outs.extend(0)
+            num_missing += 1
+    if num_missing:
+        print(f"Found {num_missing} videos, setting their class label to default {0}")
+
     df = pd.DataFrame({"video": [vid+".avi" for vid in all_vids], "predict": all_outs})
     df.to_csv(csv_file, header=False, index=False, float_format="%.3f")
     print(f"Predictions have been save to {csv_file}")
@@ -179,25 +191,25 @@ def predict_and_save(model, dataloader, csv_file):
 
 
 if __name__ == "__main__":
-
-    data_dir = "/Users/lxfhfut/Dropbox/Garvan/CBVCC/tif/cyto_retrained"
-    anno_dir = "/Users/lxfhfut/Dropbox/Garvan/CBVCC/dataset/"
-
-    tst_dataset = TrajPointDataset(data_dir, split="testing")
-    tst_dataloader = DataLoader(tst_dataset, batch_size=4, shuffle=False, collate_fn=tst_dataset.collate_fn)
-
-    best_model = VideoClassifier(n_features=64, max_sequence_length=20, sample_attention="single")
-    best_model.load_state_dict(torch.load("ckpts/best_model_20241129_110427tick.pt", weights_only=True)["model_state_dict"])
-
-    predict_and_save(best_model, tst_dataloader, "results/preds.csv")
-
-    missing_pred = 0
-    ground_truth_file = os.path.join(anno_dir, "test.csv")
-    predictions_file = 'results/preds.csv'
-
-    ground_truth = parse_csv(ground_truth_file)
-    predictions = parse_csv(predictions_file)
-
-    eval_results = calculate_metrics(ground_truth, predictions)
-    for k, v in eval_results.items():
-        print(f"{k}: {v:.4f}")
+    pass
+    # data_dir = "/Users/lxfhfut/Dropbox/Garvan/CBVCC/tif/cyto_retrained"
+    # anno_dir = "/Users/lxfhfut/Dropbox/Garvan/CBVCC/dataset/"
+    #
+    # tst_dataset = TrajPointDataset(data_dir, split="testing")
+    # tst_dataloader = DataLoader(tst_dataset, batch_size=4, shuffle=False, collate_fn=tst_dataset.collate_fn)
+    #
+    # best_model = VideoClassifier(n_features=64, max_sequence_length=20, sample_attention="single")
+    # best_model.load_state_dict(torch.load("ckpts/best_model_20241129_110427tick.pt", weights_only=True)["model_state_dict"])
+    #
+    # predict_and_save(best_model, tst_dataloader, "results/preds.csv")
+    #
+    # missing_pred = 0
+    # ground_truth_file = os.path.join(anno_dir, "test.csv")
+    # predictions_file = 'results/preds.csv'
+    #
+    # ground_truth = parse_csv(ground_truth_file)
+    # predictions = parse_csv(predictions_file)
+    #
+    # eval_results = calculate_metrics(ground_truth, predictions)
+    # for k, v in eval_results.items():
+    #     print(f"{k}: {v:.4f}")

@@ -62,7 +62,7 @@ def main():
     )
 
     # Test mode parser
-    test_parser = subparsers.add_parser('infer', help='Test for a single video')
+    test_parser = subparsers.add_parser('predict', help='Test for a single video')
     test_parser.add_argument(
         '--video_path',
         type=Path,
@@ -166,7 +166,7 @@ def main():
         eval_results = calculate_metrics(ground_truth, predictions)
         for k, v in eval_results.items():
             print(f"{k}: {v:.4f}")
-    elif args.mode == 'infer':
+    elif args.mode == 'predict':
         video_path = Path(args.video_path)
         vid = video_path.stem
         video = cv2.VideoCapture(video_path)

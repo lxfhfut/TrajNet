@@ -1,8 +1,3 @@
-<script
-  src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"
-  type="text/javascript">
-</script>
-
 # Method
 
 We present a trajectory-based approach for analyzing and classifying cellular motion patterns in intravital microscopy videos. Our method consists of several key components: cell tracking, feature extraction using a convolutional neural network, attention-based trajectory selection, and classification. The method is designed to be robust to tracking errors while capturing essential motion characteristics.
@@ -35,15 +30,15 @@ To identify and focus on the most informative trajectories within each video, we
 
 Let f_i^j denote the feature vector of the j-th trajectory in video i. The attention weight α_i^j for each trajectory is computed as:
 
-```
+$$
 α_i^j = exp(w^T f_i^j) / Σ_k exp(w^T f_i^k)
-```
+$$
 
 where w is a learnable parameter vector. The final video representation v_i is then computed as:
 
-```
+$$
 v_i = Σ_j α_i^j f_i^j
-```
+$$
 
 This approach allows the model to automatically learn which trajectories are most relevant for classification, similar to how human experts would select trajectories of interest for decision-making.
 

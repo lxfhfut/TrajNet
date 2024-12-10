@@ -23,7 +23,8 @@ class TrajPointDataset(Dataset):
             self.max_points_to_add = 5
 
         # Load data
-        annotations = pd.read_csv(osp.join(osp.dirname(osp.dirname(data_dir)), "train.csv" if split == "training" else "test.csv"))
+        annotations = pd.read_csv(osp.join(osp.dirname(osp.dirname(data_dir)),
+                                           "train.csv" if split == "training" else "test.csv"))
         vids = [f.name for f in os.scandir(data_dir) if f.is_dir()]
         video_data = []
         labels = []

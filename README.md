@@ -24,7 +24,7 @@ conda activate cbvcc
 
 ## Usage
 
-The program supports three modes of operation: training, evaluation, and inference on single videos.
+The program supports three modes of operation: train, evaluate, and predict.
 
 ### Training Mode
 
@@ -89,12 +89,12 @@ Parameters:
 - `--segmenter`: Cellpose model for segmentation (default: cytotorch_0)
 - `--batch_size`: Evaluation batch size (default: 4)
 
-### Inference Mode (Single Video)
+### Predict Mode (Single Video)
 
 Analyze and classify a single video:
 
 ```bash
-python main.py infer \
+python main.py predict \
     --video_path /path/to/video.avi \
     --model_path ./ckpts/best_model.pt \
     --save_dir ./results \

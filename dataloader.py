@@ -7,7 +7,39 @@ from torch.utils.data import Dataset
 
 
 class TrajPointDataset(Dataset):
-    def __init__(self, data_dir, split=None, max_length=20, augment=False):
+    """
+        PyTorch Dataset for handling trajectory point data with optional augmentations.
+
+        This dataset loads trajectory data from CSV files and supports various
+        augmentation techniques for trajectory enhancement during training.
+
+        Args:
+            data_dir (str): Directory containing trajectory data.
+            split (Optional[str]): Data split to use ('training' or 'testing'). Defaults to None.
+            max_length (int): Maximum length of trajectories. Defaults to 20.
+            augment (bool): Whether to apply augmentations. Defaults to False.
+
+        Attributes:
+            data_dir (str): Base directory for data.
+            max_length (int): Maximum trajectory length.
+            augment (bool): Augmentation flag.
+            video_data (List[List[torch.Tensor]]): Loaded trajectory data.
+            labels (List[int]): Video labels.
+            video_ids (List[str]): Video identifiers.
+            rotation_angle (float): Maximum rotation angle for augmentation.
+            scale_range (Tuple[float, float]): Range for scale augmentation.
+            noise_level (float): Level of Gaussian noise for augmentation.
+            reverse_prob (float): Probability of time reversal.
+            speed_range (Tuple[float, float]): Range for speed modification.
+            interp_prob (float): Probability of trajectory interpolation.
+            max_points_to_add (int): Maximum points to add during interpolation.
+        """
+    def __init__(self,
+                 data_dir: str,
+                 split: Optional[str] = None,
+                 max_length: int = 20,
+                 augment: bool = False) -> None:
+        """Initialize dataset with specified parameters."""
         self.data_dir = data_dir
         self.max_length = max_length
         self.augment = augment
@@ -61,10 +93,24 @@ class TrajPointDataset(Dataset):
         self.labels = labels
         self.video_ids = video_ids
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.labels)
 
-    def _interp_trajectory(self, traj):
+    def _interp_trajectory(self, traj: torch.Tensor) -> torch.Tensor:
+        """
+        Interpolate additional points in a trajectory.
+
+        Args:
+            traj (torch.Tensor): Input trajectory tensor of shape (N, 3).
+
+        Returns:
+            torch.Tensor: Interpolated trajectory with additional points.
+
+        Note:
+            - Only interpolates if trajectory length is less than max_length
+            - Uses linear interpolation between existing points
+            - Ran
+        """
         if len(traj) >= self.max_length:
             return traj
 
@@ -93,8 +139,20 @@ class TrajPointDataset(Dataset):
         # print(f"After interp.: {torch.stack(new_trajectory)}")
         return torch.stack(new_trajectory)
 
-    def _rotate_trajectory(self, traj):
-        """Randomly rotate trajectory in 2D space"""
+    def _rotate_trajectory(self, traj: torch.Tensor) -> torch.Tensor:
+        """
+        Apply random rotation to trajectory in 2D space.
+
+        Args:
+            traj (torch.Tensor): Input trajectory tensor of shape (N, 3).
+
+        Returns:
+            torch.Tensor: Rotated trajectory.
+
+        Note:
+            - Rotation angle is randomly selected within [-rotation_angle, rotation_angle]
+            - Only spatial coordinates are rotated; time remains unchanged
+        """
         angle = np.random.uniform(-self.rotation_angle, self.rotation_angle)
         angle_rad = np.deg2rad(angle)
         rot_matrix = torch.tensor([
@@ -108,15 +166,40 @@ class TrajPointDataset(Dataset):
 
         return torch.cat([time, rotated_xy], dim=1)
 
-    def _scale_trajectory(self, traj):
-        """Randomly scale the spatial coordinates"""
+    def _scale_trajectory(self, traj: torch.Tensor) -> torch.Tensor:
+        """
+        Apply random scaling to trajectory spatial coordinates.
+
+        Args:
+            traj (torch.Tensor): Input trajectory tensor of shape (N, 3).
+
+        Returns:
+            torch.Tensor: Scaled trajectory.
+
+        Note:
+            - Scale factor is randomly selected from scale_range
+            - Only spatial coordinates are scaled; time remains unchanged
+        """
         scale = np.random.uniform(*self.scale_range)
         scaled_traj = traj.clone()
         scaled_traj[:, 1:] *= scale
         return scaled_traj
 
-    def _add_noise(self, traj):
-        """Add Gaussian noise to spatial coordinates"""
+    def _add_noise(self, traj: torch.Tensor) -> torch.Tensor:
+        """
+        Add Gaussian noise to trajectory spatial coordinates.
+
+        Args:
+            traj (torch.Tensor): Input trajectory tensor of shape (N, 3).
+
+        Returns:
+            torch.Tensor: Trajectory with added noise.
+
+        Note:
+            - Noise is added only to spatial coordinates
+            - Noise level is controlled by noise_level parameter
+            - Coordinates are clamped to prevent negative values
+        """
         # print(f"Before noise.: {traj}")
         noise = torch.randn_like(traj[:, 1:]) * self.noise_level
         noisy_traj = traj.clone()
@@ -126,23 +209,61 @@ class TrajPointDataset(Dataset):
 
         return noisy_traj
 
-    def _reverse_time(self, traj):
-        """Randomly reverse the trajectory"""
+    def _reverse_time(self, traj: torch.Tensor) -> torch.Tensor:
+        """
+        Randomly reverse trajectory direction.
+
+        Args:
+            traj (torch.Tensor): Input trajectory tensor of shape (N, 3).
+
+        Returns:
+            torch.Tensor: Potentially reversed trajectory.
+
+        Note:
+            - Reversal occurs with probability reverse_prob
+            - Time values are adjusted to maintain temporal consistency
+        """
         if np.random.random() < self.reverse_prob:
             reversed_traj = torch.flip(traj, [0])
             reversed_traj[:, 0] = reversed_traj[-1, 0] - reversed_traj[:, 0]
             return reversed_traj
         return traj
 
-    def _modify_speed(self, traj):
-        """Randomly modify the speed of the trajectory"""
+    def _modify_speed(self, traj: torch.Tensor) -> torch.Tensor:
+        """
+        Modify trajectory speed by scaling time values.
+
+        Args:
+            traj (torch.Tensor): Input trajectory tensor of shape (N, 3).
+
+        Returns:
+            torch.Tensor: Trajectory with modified speed.
+
+        Note:
+            - Speed factor is randomly selected from speed_range
+            - Modification is applied to time coordinates only
+        """
         speed_factor = np.random.uniform(*self.speed_range)
         modified_traj = traj.clone()
         modified_traj[:, 0] *= speed_factor
         return modified_traj
 
-    def _augment_trajectory(self, traj):
-        """Apply random augmentations to trajectory"""
+    def _augment_trajectory(self, traj: torch.Tensor) -> torch.Tensor:
+        """
+        Apply multiple random augmentations to trajectory.
+
+        Args:
+            traj (torch.Tensor): Input trajectory tensor of shape (N, 3).
+
+        Returns:
+            torch.Tensor: Augmented trajectory.
+
+        Note:
+            - Each augmentation is applied with its own probability
+            - Augmentations include: rotation, scaling, time reversal,
+              speed modification, and interpolation
+            - Augmentations are applied sequentially
+        """
         augmented = traj.clone()
 
         augmentations = [
@@ -160,7 +281,7 @@ class TrajPointDataset(Dataset):
 
         return augmented
 
-    def __getitem__(self, idx):
+    def __getitem__(self, idx: int) -> Tuple[List[torch.Tensor], int, str]:
         trajectories = self.video_data[idx]
 
         if self.augment:
@@ -173,12 +294,46 @@ class TrajPointDataset(Dataset):
 
         return trajectories, self.labels[idx], self.video_ids[idx]
 
-    def collate_fn(self, batch):
+    def collate_fn(self, batch: List[Tuple[List[torch.Tensor], int, str]]) -> Tuple:
+        """
+        Custom collate function for batching.
+
+        Args:
+            batch: List of tuples containing (trajectories, label, video_id).
+
+        Returns:
+            Tuple containing batched and padded data.
+        """
         return prepare_batch(batch, self.max_length)
 
 
 # prepare_batch function remains the same
-def prepare_batch(batch, max_length=20):
+def prepare_batch(batch: List[Tuple[List[torch.Tensor], int, str]],
+                  max_length: int = 20) -> Tuple[List[torch.Tensor],
+                                               List[torch.Tensor],
+                                               torch.Tensor,
+                                               torch.Tensor,
+                                               List[str]]:
+    """
+    Prepare a batch of trajectories for model input.
+
+    Args:
+        batch: List of tuples containing (trajectories, label, video_id).
+        max_length (int): Maximum trajectory length. Defaults to 20.
+
+    Returns:
+        Tuple containing:
+            - List[torch.Tensor]: Padded trajectories for each video
+            - List[torch.Tensor]: Length of each trajectory
+            - torch.Tensor: Number of trajectories per video
+            - torch.Tensor: Video labels
+            - List[str]: Video IDs
+
+    Note:
+        - Pads trajectories to max_length
+        - Maintains trajectory end point for padding
+        - Handles variable numbers of trajectories per video
+    """
     # Unpack batch
     trajectory_lists, labels, video_ids = zip(*batch)
 

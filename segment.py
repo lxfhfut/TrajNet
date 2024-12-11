@@ -1,14 +1,3 @@
-"""
-Cell segmentation module using Cellpose.
-
-This module provides functionality to segment cells in microscopy videos using the Cellpose
-deep learning model. It supports both pre-trained and custom segmenter models for cell detection
-and segmentation.
-
-The module processes video frames sequentially and generates binary masks for detected cells.
-Results are saved in a compatible format for downstream analysis.
-"""
-
 import os
 import cv2
 import numpy as np
@@ -17,23 +6,29 @@ import torch.cuda
 from tqdm import tqdm
 from pathlib import Path
 from cellpose import models
+from typing import Dict, List, Tuple, Optional, Union, Any
 from csbdeep.io import save_tiff_imagej_compatible
 
 
-def get_model(root_dir, model_name):
+def get_model(root_dir: str, model_name: str) -> models.CellposeModel:
     """
-    Initialize and return a CellposeModel instance.
+    Initialize and return a CellposeModel instance for cell segmentation.
+
+    Loads either a custom retrained model or a pretrained cellpose model
+    based on the model_name parameter.
 
     Args:
-        root_dir (str): Root directory containing model files
-        model_name (str): Name of the model to load ('cyto_retrained' or other cellpose models)
+        root_dir (str): Root directory containing model files.
+        model_name (str): Name of the model to load.
+            Use 'cyto_retrained' for custom model or other cellpose model names.
 
     Returns:
-        models.CellposeModel: Initialized Cellpose model instance
+        models.CellposeModel: Initialized Cellpose model instance.
 
     Notes:
-        For 'cyto_retrained', loads from a custom path. Otherwise loads pretrained models
-        from cellpose's model directory.
+        - Automatically detects and uses GPU if available
+        - Custom model path: {root_dir}/cellpose/annotated/ckpts/models/
+        - Pretrained models loaded from cellpose's default model directory
     """
     print(f"Loading model {model_name}")
     if model_name == "cyto_retrained":
@@ -46,19 +41,25 @@ def get_model(root_dir, model_name):
                                 pretrained_model=model_path)
 
 
-def process_video_frames(root_dir, vid):
+def process_video_frames(root_dir: str, vid: str) -> np.ndarray:
     """
-    Load and process frames from a video directory.
+    Load and preprocess frames from a video directory.
+
+    Loads PNG frames from the specified directory, sorts them by frame number,
+    and extracts the green channel for cell segmentation.
 
     Args:
-        root_dir (str): Root directory containing dataset
-        vid (str): Video identifier
+        root_dir (str): Root directory containing dataset.
+        vid (str): Video identifier/name.
 
     Returns:
-        np.ndarray: Array of processed video frames
+        np.ndarray: Array of preprocessed video frames with shape (T, H, W),
+            where T is number of frames, H is height, and W is width.
 
     Notes:
-        Loads PNG frames and extracts the green channel for processing.
+        - Expects frames as PNG files in {root_dir}/dataset/imgs/{vid}/
+        - Frame filenames should be sortable by number
+        - Extracts green channel from RGB frames
     """
     # Get list of frame files
     frame_list = glob(os.path.join(root_dir, "dataset", "imgs", vid, "*.png"))
@@ -72,20 +73,29 @@ def process_video_frames(root_dir, vid):
     return np.asarray(frames)
 
 
-def generate_masks(model, imgs, model_name):
+def generate_masks(model: models.CellposeModel,
+                   imgs: np.ndarray,
+                   model_name: str) -> np.ndarray:
     """
-    Generate cell masks for all frames in a video.
+    Generate cell segmentation masks for video frames.
+
+    Uses CellposeModel to detect and segment cells in each frame,
+    with parameters optimized for the specific model type.
 
     Args:
-        model (models.CellposeModel): Initialized Cellpose model
-        imgs (np.ndarray): Array of video frames
-        model_name (str): Name of the model being used
+        model (models.CellposeModel): Initialized Cellpose model.
+        imgs (np.ndarray): Array of video frames with shape (T, H, W).
+        model_name (str): Name of the model being used.
 
     Returns:
-        np.ndarray: Array of generated masks
+        np.ndarray: Array of segmentation masks with same shape as input.
+            Each unique integer represents a different cell.
 
-    Notes:
-        Uses different parameters for segmenter vs pretrained models.
+    Note:
+        - Uses single channel for both image and probability map
+        - Minimum cell size is 20 pixels
+        - Cell diameter parameter (5) only used for non-retrained models
+        - Labels are generated frame by frame to manage memory
     """
     masks = np.zeros_like(imgs)
 
@@ -108,18 +118,26 @@ def generate_masks(model, imgs, model_name):
     return masks
 
 
-def save_results(save_dir, vid, imgs, masks):
+def save_results(save_dir: str,
+                 vid: str,
+                 imgs: np.ndarray,
+                 masks: np.ndarray) -> None:
     """
-    Save processed images and masks as TIFF files.
+    Save processed images and segmentation masks.
+
+    Saves both original images and generated masks as ImageJ-compatible
+    TIFF files with proper time axis encoding.
 
     Args:
-        save_dir (str): Directory to save results
-        vid (str): Video identifier
-        imgs (np.ndarray): Array of processed images
-        masks (np.ndarray): Array of generated masks
+        save_dir (str): Directory to save results.
+        vid (str): Video identifier/name.
+        imgs (np.ndarray): Array of processed images.
+        masks (np.ndarray): Array of generated segmentation masks.
 
-    Notes:
-        Saves files in ImageJ-compatible TIFF format with time axis.
+    Note:
+        - Creates output directory if it doesn't exist
+        - Saves as {vid}_imgs.tif and {vid}_msks.tif
+        - Uses TYX axis ordering for ImageJ compatibility
     """
     Path(save_dir).mkdir(parents=True, exist_ok=True)
     save_tiff_imagej_compatible(os.path.join(save_dir, f'{vid}_imgs.tif'),
@@ -128,18 +146,28 @@ def save_results(save_dir, vid, imgs, masks):
                                 masks, axes='TYX')
 
 
-def segment_single_video(root_dir, vid, out_dir, model_name):
+def segment_single_video(root_dir: str,
+                         vid: str,
+                         out_dir: str,
+                         model_name: str) -> None:
     """
     Process and segment a single video.
 
-    Args:
-        root_dir (str): Root directory containing dataset
-        vid (str): Video identifier
-        out_dir (str): Output directory for results
-        model_name (str): Name of the model to use
+    Executes complete segmentation pipeline for one video:
+    1. Load model
+    2. Process video frames
+    3. Generate segmentation masks
+    4. Save results
 
-    Notes:
-        Handles complete pipeline from loading to saving results.
+    Args:
+        root_dir (str): Root directory containing dataset.
+        vid (str): Video identifier/name.
+        out_dir (str): Output directory for results.
+        model_name (str): Name of the model to use.
+
+    Note:
+        - Results are saved in {out_dir}/{model_name}/{vid}/
+        - Creates new model instance for each video
     """
     model = get_model(root_dir, model_name)
     imgs = process_video_frames(root_dir, vid)
@@ -148,17 +176,25 @@ def segment_single_video(root_dir, vid, out_dir, model_name):
     save_results(save_dir, vid, imgs, masks)
 
 
-def segment_videos(root_dir, out_dir, model_name):
+def segment_videos(root_dir: str,
+                  out_dir: str,
+                  model_name: str) -> None:
     """
-    Process multiple videos with progress tracking.
+    Batch process multiple videos for segmentation.
+
+    Processes all video directories in the dataset with progress tracking,
+    using a single model instance for efficiency.
 
     Args:
-        root_dir (str): Root directory containing dataset
-        out_dir (str): Output directory for results
-        model_name (str): Name of the model to use
+        root_dir (str): Root directory containing dataset.
+        out_dir (str): Output directory for results.
+        model_name (str): Name of the model to use.
 
-    Notes:
-        Uses tqdm for progress tracking during batch processing.
+    Note:
+        - Processes videos found in {root_dir}/dataset/imgs/
+        - Shows progress bar during processing
+        - Reuses same model instance across all videos
+        - Results organized by model name and video ID
     """
     # Get list of video folders
     vid_folders = [f.name for f in os.scandir(os.path.join(root_dir, "dataset", "imgs"))

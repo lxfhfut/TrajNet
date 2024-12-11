@@ -7,10 +7,29 @@ import pandas as pd
 from tqdm import tqdm
 import tifffile as tiff
 import matplotlib.pyplot as plt
+from typing import List, Dict, Tuple, Optional, Union, Any
 
 
 class TrainingVisualizer:
-    def __init__(self, num_epochs):
+    """
+       A class for real-time visualization of training metrics during model training.
+
+       This class creates and updates a matplotlib figure with two subplots:
+       one for tracking training/validation loss and another for accuracy metrics.
+
+       Args:
+           num_epochs (int): The total number of training epochs.
+
+       Attributes:
+           fig (matplotlib.figure.Figure): The main figure object containing both subplots.
+           ax1 (matplotlib.axes.Axes): The subplot for loss visualization.
+           ax2 (matplotlib.axes.Axes): The subplot for accuracy visualization.
+           train_losses (List[float]): List to store training loss values.
+           val_losses (List[float]): List to store validation loss values.
+           val_accuracies (List[float]): List to store validation accuracy values.
+           train_accuracies (List[float]): List to store training accuracy values.
+       """
+    def __init__(self, num_epochs: int) -> None:
         # Prepare figure with subplots
         self.fig, (self.ax1, self.ax2) = plt.subplots(2, 1, figsize=(10, 10))
         self.fig.suptitle('Training and Validation Metrics')
@@ -38,13 +57,19 @@ class TrainingVisualizer:
         # Prepare plot
         plt.tight_layout()
 
-    def update(self, train_loss, val_loss, train_acc, val_acc):
+    def update(self,
+               train_loss: float,
+               val_loss: float,
+               train_acc: float,
+               val_acc: float) -> None:
         """
-        Update visualization with new metrics
+        Update the visualization with new metrics from the current epoch.
 
         Args:
-            train_loss: Current epoch's training loss
-            val_accuracy: Current epoch's validation accuracy
+            train_loss (float): Current epoch's training loss.
+            val_loss (float): Current epoch's validation loss.
+            train_acc (float): Current epoch's training accuracy.
+            val_acc (float): Current epoch's validation accuracy.
         """
         self.train_losses.append(train_loss)
         self.val_losses.append(val_loss)
@@ -74,7 +99,7 @@ class TrainingVisualizer:
         plt.draw()
         plt.pause(0.1)
 
-    def save(self, filename='training_metrics.png'):
+    def save(self, filename: str = 'training_metrics.png') -> None:
         """
         Save the final visualization
 
@@ -85,7 +110,25 @@ class TrainingVisualizer:
         plt.close(self.fig)
 
 
-def tracks_csv(csv_path, track_ids=None, sample_rate=1):
+def tracks_csv(csv_path: str,
+               track_ids: Optional[np.ndarray] = None,
+               sample_rate: int = 1) -> Tuple[np.ndarray, Dict[str, np.ndarray], Dict]:
+    """
+    Read and process tracking data from a CSV file.
+
+    Args:
+        csv_path (str): Path to the CSV file containing tracking data.
+        track_ids (np.ndarray, optional): Specific track IDs to process.
+            If None, all tracks are processed. Defaults to None.
+        sample_rate (int, optional): Sampling rate for track selection.
+            Defaults to 1 (use all tracks).
+
+    Returns:
+        Tuple containing:
+            - np.ndarray: Processed tracks data
+            - Dict[str, np.ndarray]: Features dictionary with 'frame' and 'track_id' arrays
+            - Dict: Empty graph dictionary (placeholder for future use)
+    """
     data = pd.read_csv(csv_path)
     column_idx = data.columns.get_indexer(['particle', 'frame', 'x', 'y'])
     tracks_data = data.iloc[:, column_idx].values
@@ -107,7 +150,27 @@ def tracks_csv(csv_path, track_ids=None, sample_rate=1):
     return tracks, features, graph
 
 
-def vis_tracks(data_dir, name, track_ids=None):
+def vis_tracks(data_dir: str,
+               name: str,
+               track_ids: Optional[np.ndarray] = None) -> napari.Viewer:
+    """
+    Visualize tracking data using napari viewer.
+
+    Creates a napari viewer instance with multiple layers:
+    - Raw image (green colormap)
+    - Mask image (hsv colormap, initially hidden)
+    - Points layer showing track positions
+    - Tracks layer showing particle trajectories
+
+    Args:
+        data_dir (str): Directory containing the image and tracking data.
+        name (str): Name of the dataset/experiment.
+        track_ids (np.ndarray, optional): Specific track IDs to visualize.
+            If None, all tracks are shown. Defaults to None.
+
+    Returns:
+        napari.Viewer: Configured napari viewer instance with all layers added.
+    """
     viewer = napari.Viewer(ndisplay=2)
     viewer.title = name
     img_path = os.path.join(data_dir, name, name + "_imgs.tif")
@@ -132,20 +195,24 @@ def vis_tracks(data_dir, name, track_ids=None):
     return viewer
 
 
-def save_napari_animation(viewer, output_path, fps=30):
+def save_napari_animation(viewer: napari.Viewer,
+                          output_path: str,
+                          fps: int = 5) -> None:
     """
-    Save a napari viewer animation as a video file.
+    Save a napari viewer animation as an MP4 video file.
 
-    Parameters:
-    -----------
-    viewer : napari.Viewer
-        The napari viewer instance containing the animation
-    output_path : str
-        Path where the video should be saved (e.g., 'output.mp4')
-    fps : int
-        Frames per second for the output video
-    close_viewer : bool
-        Whether to close the viewer after saving (default True)
+    Takes the current state of a napari viewer and creates a video by
+    capturing each frame as the time dimension is stepped through.
+
+    Args:
+        viewer (napari.Viewer): The napari viewer instance containing the animation.
+        output_path (str): Path where the video should be saved (e.g., 'output.mp4').
+        fps (int, optional): Frames per second for the output video. Defaults to 30.
+
+    Note:
+        - The function assumes the first dimension is time
+        - The output video uses MP4V codec
+        - The viewer's canvas is captured without any GUI elements
     """
     # Get the dimensions
     dims = viewer.dims

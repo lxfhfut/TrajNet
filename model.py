@@ -5,7 +5,25 @@ import torch.nn.functional as F
 
 
 class TrajFeatNet(nn.Module):
-    def __init__(self, n_features=32, max_sequence_length=20):
+    """
+        Neural network module for extracting features from trajectories.
+
+        Processes trajectory data through convolutional layers and attention mechanisms
+        to extract meaningful features for classification.
+
+        Args:
+            n_features (int): Number of output features. Defaults to 32.
+            max_sequence_length (int): Maximum length of input trajectories. Defaults to 20.
+
+        Attributes:
+            max_sequence_length (int): Maximum trajectory length
+            conv_layers (nn.ModuleList): List of 1D convolutional layers
+            batch_norms (nn.ModuleList): List of batch normalization layers
+            traj_attention (nn.MultiheadAttention): Trajectory-level attention mechanism
+            feature_extractor (nn.Sequential): Final feature extraction layers
+    """
+
+    def __init__(self, n_features: int = 32, max_sequence_length: int = 20):
         super(TrajFeatNet, self).__init__()
         self.max_sequence_length = max_sequence_length
         
@@ -37,13 +55,23 @@ class TrajFeatNet(nn.Module):
             nn.Dropout(0.5)
         )
 
-    def forward(self, batch_data):
+    def forward(self, batch_data: Tuple[List[torch.Tensor], List[torch.Tensor], torch.Tensor]) -> List[torch.Tensor]:
         """
+        Process a batch of trajectory data.
+
         Args:
             batch_data: Tuple containing:
-                - padded_trajectories: List[Tensor] of shape [n_trajs, max_length, 3] for each video
-                - traj_lengths: List[Tensor] of trajectory lengths for each video
-                - video_lengths: Tensor of number of trajectories per video
+                - padded_trajectories (List[torch.Tensor]): Trajectories [n_trajs, max_length, 3]
+                - traj_lengths (List[torch.Tensor]): Length of each trajectory
+                - video_lengths (torch.Tensor): Number of trajectories per video
+
+        Returns:
+            List[torch.Tensor]: Processed features for each video in the batch
+
+        Note:
+            - Applies convolutions with masking based on trajectory lengths
+            - Uses global pooling to get trajectory-level features
+            - Features are extracted independently for each video
         """
         padded_trajectories, traj_lengths, video_lengths = batch_data
         batch_size = len(padded_trajectories)
@@ -88,8 +116,26 @@ class TrajFeatNet(nn.Module):
 
 
 class SampleAttention(nn.Module):
-    """Weight different samples from each video"""
-    def __init__(self, input_dim, attention_type='single'):
+    """
+       Attention mechanism for weighting different samples within a video.
+
+       Supports multiple attention types: single, multi-head, and scaled dot-product.
+
+       Args:
+           input_dim (int): Dimension of input features
+           attention_type (str): Type of attention mechanism
+               Options: 'single', 'multi_head', 'scaled_dot'
+
+       Attributes:
+           input_dim (int): Input feature dimension
+           attention_type (str): Selected attention mechanism
+           attention (nn.Sequential): Single attention network
+           num_heads (int): Number of attention heads for multi-head attention
+           head_dim (int): Dimension of each attention head
+           temperature (float): Scaling factor for dot-product attention
+    """
+
+    def __init__(self, input_dim: int, attention_type: str = 'single'):
         super().__init__()
         self.input_dim = input_dim
         self.attention_type = attention_type
@@ -114,7 +160,25 @@ class SampleAttention(nn.Module):
             self.query = nn.Linear(input_dim, input_dim)
             self.key = nn.Linear(input_dim, input_dim)
     
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Apply attention mechanism to input features.
+
+        Args:
+            x (torch.Tensor): Input features
+                Shape: [seq_len, feature_dim] or [batch_size, seq_len, feature_dim]
+
+        Returns:
+            torch.Tensor: Weighted feature representation
+                Shape: [feature_dim]
+
+        Note:
+            - Handles empty sequences by returning zero tensor
+            - Different behavior based on attention_type:
+                - single: Direct attention weights
+                - multi_head: Multiple attention heads with concatenation
+                - scaled_dot: Scaled dot-product attention
+        """
         # Handle empty sequence case
         if x.size(0) == 0:  # Empty sequence
             if self.attention_type == 'single':
@@ -165,7 +229,28 @@ class SampleAttention(nn.Module):
 
 
 class VideoClassifier(nn.Module):
-    def __init__(self, n_features=32, max_sequence_length=20, sample_attention='single'):
+    """
+        Complete video classification model using trajectory features.
+
+        Combines trajectory feature extraction with attention-based aggregation
+        and binary classification.
+
+        Args:
+            n_features (int): Number of features to extract per trajectory. Defaults to 32.
+            max_sequence_length (int): Maximum trajectory length. Defaults to 20.
+            sample_attention (str): Type of attention for sample weighting. Defaults to 'single'.
+
+        Attributes:
+            feat_extractor (TrajFeatNet): Trajectory feature extraction module
+            input_dim (int): Dimension of extracted features
+            sample_attention (SampleAttention): Attention mechanism for sample weighting
+            classifier (nn.Sequential): Classification layers
+    """
+
+    def __init__(self, n_features: int = 32,
+                 max_sequence_length: int = 20,
+                 sample_attention: str = 'single'):
+
         super().__init__()
 
         self.feat_extractor = TrajFeatNet(n_features, max_sequence_length)
@@ -186,16 +271,25 @@ class VideoClassifier(nn.Module):
             nn.Sigmoid()
         )
         
-    def forward(self, batch_data):
+    def forward(self, batch_data: Tuple[List[torch.Tensor],
+                                          List[torch.Tensor],
+                                          torch.Tensor]) -> torch.Tensor:
         """
+        Process a batch of videos for classification.
+
         Args:
             batch_data: Tuple containing:
-                - padded_trajectories: List[Tensor] of shape [n_trajs, max_length, 3] for each video
-                - traj_lengths: List[Tensor] of trajectory lengths for each video
-                - video_lengths: Tensor of number of trajectories per video
-                -
+                - padded_trajectories (List[torch.Tensor]): Trajectories [n_trajs, max_length, 3]
+                - traj_lengths (List[torch.Tensor]): Length of each trajectory
+                - video_lengths (torch.Tensor): Number of trajectories per video
+
         Returns:
-            Tensor of shape [batch_size, 1] with sigmoid probabilities
+            torch.Tensor: Classification probabilities [batch_size, 1]
+
+        Note:
+            - Extracts features for each trajectory
+            - Aggregates features using attention
+            - Returns sigmoid probabilities for binary classification
         """
         
         # x is List[Tensor], each of shape (m_i, d), where m_i is the number of trajectories and d is n_features

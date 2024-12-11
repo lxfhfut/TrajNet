@@ -6,10 +6,31 @@ import pandas as pd
 from model import VideoClassifier
 from dataloader import TrajPointDataset
 from torch.utils.data import DataLoader
+from typing import Dict, List, Tuple, Union, Any
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 
 
-def parse_csv(file):
+def parse_csv(file: str) -> Dict[str, float]:
+    """
+    Parse a CSV file containing video IDs and their corresponding values.
+
+    The function handles both .avi and non-.avi file extensions and performs
+    various error checks on the input data.
+
+    Args:
+        file (str): Path to the CSV file to parse.
+
+    Returns:
+        Dict[str, float]: Dictionary mapping video IDs to their corresponding values.
+
+    Raises:
+        ValueError: If no valid data is found in the file.
+
+    Note:
+        - Automatically detects presence of headers using csv.Sniffer
+        - Adds .avi extension to filenames if missing
+        - Skips empty rows and rows with invalid numeric values
+    """
     data = {}
     with open(file, 'r') as handle:
         # Read the first few lines to check for headers
@@ -52,7 +73,38 @@ def parse_csv(file):
     return data
 
 
-def calculate_metrics(ground_truth, predictions):
+def calculate_metrics(ground_truth: Dict[str, Union[float, int]],
+                      predictions: Dict[str, Union[float, int]]) -> Dict[str, Union[int, float]]:
+    """
+    Calculate various classification metrics including ROC AUC and confusion matrix statistics.
+
+    Computes multiple classification metrics including sensitivity, specificity,
+    balanced accuracy, and AUC-ROC. Also calculates a custom score combining multiple metrics.
+
+    Args:
+        ground_truth (Dict[str, Union[float, int]]): Dictionary of true labels for each video ID.
+        predictions (Dict[str, Union[float, int]]): Dictionary of predicted probabilities for each video ID.
+
+    Returns:
+        Dict[str, Union[int, float]]: Dictionary containing the following metrics:
+            - TP: True Positives
+            - FP: False Positives
+            - FN: False Negatives
+            - TN: True Negatives
+            - Sensitivity: True Positive Rate
+            - Specificity: True Negative Rate
+            - Accuracy: Overall accuracy
+            - Precision: Positive predictive value
+            - Recall: Same as Sensitivity
+            - Balanced Accuracy: Average of Sensitivity and Specificity
+            - AUC: Area Under the ROC Curve
+            - Score: Custom weighted score (0.4*AUC + 0.2*(precision+recall+balanced_accuracy))
+
+    Note:
+        - Uses a default threshold of 0.5 for binary classification
+        - Calculates AUC using the trapezoidal rule
+        - All ratio metrics are rounded to 4 decimal places
+    """
 
     # Get unique thresholds from predictions
     thresholds = sorted(set(float(val) for val in predictions.values()))
@@ -136,7 +188,33 @@ def calculate_metrics(ground_truth, predictions):
     }
 
 
-def predict_and_save(model, dataloader, csv_file):
+def predict_and_save(model: VideoClassifier,
+                    dataloader: DataLoader,
+                    csv_file: str) -> Dict[str, float]:
+    """
+    Generate predictions using the model and save results to a CSV file.
+
+    Makes predictions on the provided data, handles videos without tracking results,
+    saves predictions to a CSV file, and calculates performance metrics.
+
+    Args:
+        model (VideoClassifier): The trained model to use for predictions.
+        dataloader (DataLoader): DataLoader containing the test data.
+        csv_file (str): Path where the predictions CSV should be saved.
+
+    Returns:
+        Dict[str, float]: Dictionary containing the following metrics:
+            - accuracy: Overall classification accuracy
+            - precision: Model precision
+            - recall: Model recall
+            - f1: F1 score
+
+    Note:
+        - Videos without tracking results are assigned class '0'
+        - Prints details of incorrect predictions during evaluation
+        - Saves predictions in CSV format without headers
+        - Uses torch.no_grad() for efficient inference
+    """
     model.eval()
     all_preds = []
     all_labels = []

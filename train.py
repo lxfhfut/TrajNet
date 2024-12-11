@@ -9,10 +9,32 @@ from model import VideoClassifier
 from utils import TrainingVisualizer
 from dataloader import TrajPointDataset
 from torch.utils.data import DataLoader
+from typing import Dict, List, Tuple, Optional, Union, Any
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 
 
-def test_model(model, dataloader):
+def test_model(model: VideoClassifier,
+               dataloader: DataLoader) -> Dict[str, float]:
+    """
+    Test a trained model and calculate performance metrics.
+
+    Evaluates the model on test data and prints details of incorrect predictions.
+
+    Args:
+        model (VideoClassifier): The trained model to evaluate.
+        dataloader (DataLoader): DataLoader containing the test data.
+
+    Returns:
+        Dict[str, float]: Dictionary containing performance metrics:
+            - accuracy: Overall classification accuracy
+            - precision: Model precision
+            - recall: Model recall
+            - f1: F1 score
+
+    Note:
+        - Uses a threshold of 0.5 for binary classification
+        - Prints details of misclassified examples during evaluation
+    """
     model.eval()
     all_preds = []
     all_labels = []
@@ -46,10 +68,31 @@ def test_model(model, dataloader):
     return metrics
 
 
-def evaluate_model(model, dataloader, criterion):
+def evaluate_model(model: VideoClassifier,
+                  dataloader: DataLoader,
+                  criterion: nn.Module) -> Dict[str, float]:
     """
-    Evaluate the model on the given dataloader
-    Returns loss and predictions for metric calculation
+    Evaluate model performance on a given dataset.
+
+    Computes loss and various performance metrics on the provided data.
+
+    Args:
+        model (VideoClassifier): Model to evaluate.
+        dataloader (DataLoader): DataLoader containing evaluation data.
+        criterion (nn.Module): Loss function to use for evaluation.
+
+    Returns:
+        Dict[str, float]: Dictionary containing:
+            - loss: Average loss over the dataset
+            - accuracy: Classification accuracy
+            - precision: Model precision
+            - recall: Model recall
+            - f1: F1 score
+
+    Note:
+        - Evaluation is performed in eval mode with torch.no_grad()
+        - Uses a threshold of 0.5 for binary classification
+        - Metrics are calculated using scikit-learn functions
     """
     model.eval()
     total_loss = 0
@@ -79,14 +122,39 @@ def evaluate_model(model, dataloader, criterion):
     return metrics
 
 
-def train_model(model, train_loader, val_loader, num_epochs=10, learning_rate=0.001, save_dir=None):
+def train_model(model: VideoClassifier,
+                train_loader: DataLoader,
+                val_loader: DataLoader,
+                num_epochs: int = 10,
+                learning_rate: float = 0.001,
+                save_dir: Optional[str] = None) -> VideoClassifier:
     """
-    Training loop for the trajectory feature extractor
-    
+    Train a video classification model with validation-based checkpointing.
+
+    Implements a complete training loop with learning rate scheduling,
+    visualization, and model checkpointing based on validation accuracy.
+
     Args:
-        model: The VariableLengthTrajectoryExtractor model
-        num_epochs: Number of training epochs
-        learning_rate: Learning rate for optimization
+        model (VideoClassifier): The model to train.
+        train_loader (DataLoader): DataLoader for training data.
+        val_loader (DataLoader): DataLoader for validation data.
+        num_epochs (int, optional): Number of training epochs. Defaults to 10.
+        learning_rate (float, optional): Initial learning rate. Defaults to 0.001.
+        save_dir (str, optional): Directory to save checkpoints and visualizations.
+            Defaults to "./ckpts/".
+
+    Returns:
+        VideoClassifier: The trained model (with best validation performance).
+
+    Note:
+        - Uses SGD optimizer with momentum and weight decay
+        - Implements OneCycleLR learning rate scheduling
+        - Saves training visualizations and model checkpoints
+        - Restores best model based on validation accuracy
+        - Default configuration includes:
+            * momentum: 0.9
+            * weight_decay: 1e-3
+            * Binary cross-entropy loss
     """
     out_dir = "./ckpts/" if save_dir is None else save_dir
     criterion = nn.BCELoss()

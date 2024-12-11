@@ -54,6 +54,18 @@ def main():
         help="Cellpose model used for segmentation"
         )
     train_parser.add_argument(
+        '--num_epochs',
+        type=int,
+        default=500,
+        help="Number of epochs for training"
+    )
+    train_parser.add_argument(
+        '--learning_rate',
+        type=float,
+        default=0.05,
+        help='Learning rate for training'
+    )
+    train_parser.add_argument(
         '--batch_size',
         type=int,
         default=32,
@@ -145,7 +157,9 @@ def main():
         val_dataloader = DataLoader(val_dataset, batch_size=4, shuffle=False, collate_fn=val_dataset.collate_fn)
 
         model = VideoClassifier(n_features=64, max_sequence_length=20, sample_attention="single")
-        best_model = train_model(model, train_dataloader, val_dataloader, num_epochs=1000, learning_rate=0.005)
+        best_model = train_model(model, train_dataloader, val_dataloader,
+                                 num_epochs=args.num_epochs,
+                                 learning_rate=args.learning_rate)
     elif args.mode == 'evaluate':
         print(f"Evaluate with segmenter {args.segmenter}")
         data_dir = os.path.join(args.root_dir, "trks", args.segmenter)
@@ -210,10 +224,10 @@ def main():
         msks_path = os.path.join(save_dir, vid + '_msks.tif')
 
         print("Tracking cells...")
-        df = features_from_masks(imgs_path, msks_path, int_thres=100, sz_thres=50)
+        df = features_from_masks(imgs_path, msks_path, int_thres=50, sz_thres=50)
         if not df.empty:
             trajs = tracking(df, os.path.join(save_dir, f"{vid}_track_trajectories.csv"),
-                             max_gap=20, min_len=3, min_int=100)
+                             max_gap=20, min_len=3, min_int=50)
             if not trajs.empty:
                 viewer = vis_tracks(save_dir.parent, vid, track_ids=None)
                 save_napari_animation(viewer, os.path.join(save_dir, vid + f"_{args.segmenter}.mp4"), fps=5)

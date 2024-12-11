@@ -8,21 +8,40 @@ from laptrack import LapTrack
 from skimage.measure import regionprops
 
 
-def features_from_masks(imgs_path, masks_path, int_thres=20, sz_thres=50):
+def features_from_masks(imgs_path: str,
+                        masks_path: str,
+                        int_thres: int = 50,
+                        sz_thres: int = 50) -> pd.DataFrame:
     """
-        Extract cell features from image and mask pairs.
+    Extract cell features from microscopy image and segmentation mask pairs.
 
-        Args:
-            imgs_path (str): Path to original images TIFF file
-            masks_path (str): Path to segmentation masks TIFF file
-            int_thres (int): Intensity threshold for cell detection
-            sz_thres (int): Size threshold for cell detection
+    Processes TIFF files containing microscopy images and their corresponding
+    segmentation masks to extract cellular features including position,
+    morphology, and intensity measurements.
 
-        Returns:
-            pd.DataFrame: DataFrame containing extracted cell features
+    Args:
+        imgs_path (str): Path to original microscopy images TIFF file.
+        masks_path (str): Path to corresponding segmentation masks TIFF file.
+        int_thres (int, optional): Minimum mean intensity threshold for cell detection.
+            Defaults to 50.
+        sz_thres (int, optional): Minimum area threshold for cell detection.
+            Defaults to 50.
 
-        Notes:
-            Features include position, size, shape, and intensity measurements.
+    Returns:
+        pd.DataFrame: DataFrame containing extracted features with columns:
+            - x, y: Cell centroid coordinates
+            - mass: Total cell mass (area * intensity)
+            - size_x, size_y: Bounding box dimensions
+            - eccentricity: Cell shape eccentricity
+            - solidity: Cell shape solidity
+            - intensity_mean: Mean cell intensity
+            - area: Cell area
+            - frame: Time frame index
+
+    Note:
+        - Images are reoriented to XYT format for processing
+        - Cells below intensity or size thresholds are filtered out
+        - Features are extracted using skimage.measure.regionprops
     """
 
     imgs = tiff.imread(imgs_path)
@@ -73,24 +92,38 @@ def features_from_masks(imgs_path, masks_path, int_thres=20, sz_thres=50):
     return df
 
 
-def tracking(df, result_csv, tracker="laptrack", max_gap=12, min_len=5, min_int=50):
+def tracking(df: pd.DataFrame,
+             result_csv: str,
+             tracker: str = "laptrack",
+             max_gap: int = 12,
+             min_len: int = 5,
+             min_int: float = 50) -> pd.DataFrame:
     """
-        Perform cell tracking using specified algorithm.
+    Perform cell tracking on feature data using specified tracking algorithm.
 
-        Args:
-            df (pd.DataFrame): DataFrame containing cell features
-            result_csv (str): Path to save tracking results
-            tracker (str): Tracking algorithm to use ('laptrack' or 'trackpy')
-            max_gap (int): Maximum allowed frame gap between tracks
-            min_len (int): Minimum track length to keep
-            min_int (int): Minimum intensity threshold
+    Supports both LapTrack and TrackPy algorithms for cell tracking with
+    configurable parameters. Tracks are filtered based on length and intensity.
 
-        Returns:
-            pd.DataFrame: DataFrame containing track information
+    Args:
+        df (pd.DataFrame): DataFrame containing cell features per frame.
+        result_csv (str): Path to save tracking results CSV file.
+        tracker (str, optional): Tracking algorithm to use ('laptrack' or 'trackpy').
+            Defaults to 'laptrack'.
+        max_gap (int, optional): Maximum allowed frame gap for track linking.
+            Defaults to 12.
+        min_len (int, optional): Minimum track length to keep. Defaults to 5.
+        min_int (float, optional): Minimum mean intensity threshold.
+            Defaults to 50.
 
-        Notes:
-            Supports both LapTrack and TrackPy algorithms with configurable parameters.
-        """
+    Returns:
+        pd.DataFrame: DataFrame containing filtered track information.
+
+    Note:
+        - LapTrack parameters are configured for non-splitting/merging cases
+        - TrackPy uses adaptive parameters for robust tracking
+        - Resulting tracks are filtered by length and intensity
+        - Track data is saved to CSV if valid tracks are found
+    """
     if tracker == "laptrack":
         lt = LapTrack(
             track_dist_metric="sqeuclidean",
@@ -129,19 +162,36 @@ def tracking(df, result_csv, tracker="laptrack", max_gap=12, min_len=5, min_int=
     return t2
 
 
-def extract_track_feats(csv_path):
+def extract_track_feats(csv_path: str) -> None:
     """
-        Extract statistical features from cell tracks.
+    Extract statistical features from cell tracking data.
 
-        Args:
-            csv_path (str): Path to CSV file containing track data
+    Calculates comprehensive set of track statistics including spatial,
+    temporal, and kinematic features. Results are saved to a new CSV file.
 
-        Notes:
-            Calculates and saves various track statistics including:
-            - Displacement and duration
-            - Velocity and acceleration metrics
-            - Direction changes and angular metrics
-            - Track shape characteristics (curvature, tortuosity)
+    Args:
+        csv_path (str): Path to CSV file containing track trajectories.
+
+    Features calculated include:
+        Spatial metrics:
+        - Track displacement (total distance between start and end)
+        - Track length (total path length)
+        - Tortuosity (path length / displacement)
+
+        Temporal metrics:
+        - Track duration (number of frames)
+        - Speed statistics (mean, max, std, variation)
+        - Acceleration
+
+        Kinematic metrics:
+        - Direction changes (mean and max)
+        - Curvature (mean and max)
+        - Angular velocity (mean and max)
+
+    Note:
+        - Handles invalid values (inf) by replacing with 0
+        - Output CSV is named by replacing "trajectories" with "statistics"
+        - Results are formatted to 4 decimal places
     """
     data = pd.read_csv(csv_path)
     data.replace([np.inf, -np.inf], 0, inplace=True)
@@ -253,7 +303,31 @@ def extract_track_feats(csv_path):
         df.to_csv(csv_path.replace("trajectories", "statistics"), index=False, float_format='%.4f')
 
 
-def track_single_video(data_dir,  vid, int_thres=50, sz_thres=50):
+def track_single_video(data_dir: str,
+                      vid: str,
+                      int_thres: int = 50,
+                      sz_thres: int = 50) -> None:
+    """
+    Process a single video for cell tracking and feature extraction.
+
+    Performs complete pipeline of:
+    1. Feature extraction from image/mask pairs
+    2. Cell tracking
+    3. Track feature calculation
+
+    Args:
+        data_dir (str): Base directory containing video data.
+        vid (str): Video identifier/name.
+        int_thres (int, optional): Intensity threshold for cell detection.
+            Defaults to 50.
+        sz_thres (int, optional): Size threshold for cell detection.
+            Defaults to 50.
+
+    Note:
+        - Expects specific file naming convention: {vid}_imgs.tif, {vid}_msks.tif
+        - Creates output files: {vid}_track_trajectories.csv, {vid}_statistics.csv
+        - Processing continues only if valid cells and tracks are found
+    """
     vid_dir = osp.join(data_dir, vid)
     imgs_path = osp.join(vid_dir, f"{vid}_imgs.tif")
     msks_path = osp.join(vid_dir, f"{vid}_msks.tif")
@@ -266,13 +340,33 @@ def track_single_video(data_dir,  vid, int_thres=50, sz_thres=50):
             extract_track_feats(osp.join(vid_dir, f"{vid}_track_trajectories.csv"))
 
 
-def track_videos(data_dir, int_thres=50, sz_thres=50):
+def track_videos(data_dir: str,
+                int_thres: int = 50,
+                sz_thres: int = 50) -> None:
+    """
+    Process multiple videos for cell tracking and feature extraction.
+
+    Iterates through all subdirectories in data_dir and processes each as
+    a separate video for tracking analysis.
+
+    Args:
+        data_dir (str): Base directory containing multiple video subdirectories.
+        int_thres (int, optional): Intensity threshold for cell detection.
+            Defaults to 50.
+        sz_thres (int, optional): Size threshold for cell detection.
+            Defaults to 50.
+
+    Note:
+        - Each subdirectory in data_dir is treated as a separate video
+        - Processing is independent for each video
+        - Common thresholds are applied across all videos
+    """
     vids = [f.name for f in os.scandir(data_dir) if f.is_dir()]
     for vid in vids:
         track_single_video(data_dir, vid, int_thres, sz_thres)
 
 
 if __name__ == "__main__":
-    data_dir = "/Users/lxfhfut/Dropbox/Garvan/CBVCC/dataset/trks/cytotorch_0"
+    data_dir = "./dataset/trks/cytotorch_0"
     track_videos(data_dir, int_thres=50, sz_thres=50)
 

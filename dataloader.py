@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import os.path as osp
 from torch.utils.data import Dataset
+from typing import List, Tuple, Optional, Union, Dict
 
 
 class TrajPointDataset(Dataset):
@@ -36,7 +37,7 @@ class TrajPointDataset(Dataset):
         """
     def __init__(self,
                  data_dir: str,
-                 split: Optional[str] = None,
+                 split: str = "training",
                  max_length: int = 20,
                  augment: bool = False) -> None:
         """Initialize dataset with specified parameters."""

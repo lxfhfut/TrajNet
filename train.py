@@ -253,26 +253,5 @@ def train_model(model: VideoClassifier,
 
 if __name__ == "__main__":
     pass
-    # data_dir = "/Users/lxfhfut/Dropbox/Garvan/CBVCC/tif/cytotorch_0"
-    # anno_dir = "/Users/lxfhfut/Dropbox/Garvan/CBVCC/dataset/"
-    #
-    # train_dataset = TrajPointDataset(data_dir, split="training", augment=True)
-    # train_dataloader = DataLoader(train_dataset, batch_size=32, shuffle=True, collate_fn=train_dataset.collate_fn)
-    #
-    # val_dataset = TrajPointDataset(data_dir, split="testing")
-    # val_dataloader = DataLoader(val_dataset, batch_size=4, shuffle=False, collate_fn=val_dataset.collate_fn)
-    #
-    # model = VideoClassifier(n_features=64, max_sequence_length=20, sample_attention="single")
-    # best_model = train_model(model, train_dataloader, val_dataloader, num_epochs=1000, learning_rate=0.005)
-    #
-    # # best_model = VideoClassifier(n_features=32, max_sequence_length=20, sample_attention="single")
-    # # best_model.load_state_dict(torch.load("ckpts/best_model_20241128_144647tick.pt")["model_state_dict"])
-    # results = test_model(best_model, train_dataloader)
-    # for k, v in results.items():
-    #     print(f"{k}: {v:.4f}")
-    #
-    # results = test_model(best_model, val_dataloader)
-    # for k, v in results.items():
-    #     print(f"{k}: {v:.4f}")
 
 

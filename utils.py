@@ -252,7 +252,7 @@ def save_napari_animation(viewer: napari.Viewer,
 
 
 if __name__ == "__main__":
-    data_dir = "/Users/lxfhfut/Dropbox/Garvan/CBVCC/dataset/trks/cyto_retrained/"
+    data_dir = "./dataset/trks/cyto_retrained/"
     vid = "02_1"
     vis_tracks(data_dir, name=vid)
     napari.run()

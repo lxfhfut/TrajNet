@@ -335,7 +335,7 @@ def track_single_video(data_dir: str,
     df = features_from_masks(imgs_path, msks_path, int_thres, sz_thres)
     if not df.empty:
         trajs = tracking(df, osp.join(vid_dir, f"{vid}_track_trajectories.csv"),
-                         max_gap=18, min_len=3, min_int=int_thres)
+                         max_gap=15, min_len=3, min_int=int_thres)
         if not trajs.empty:
             extract_track_feats(osp.join(vid_dir, f"{vid}_track_trajectories.csv"))
 
@@ -367,6 +367,6 @@ def track_videos(data_dir: str,
 
 
 if __name__ == "__main__":
-    data_dir = "./dataset/trks/cytotorch_0"
+    data_dir = "./dataset/trks/cyto_retrained"
     track_videos(data_dir, int_thres=50, sz_thres=50)
 

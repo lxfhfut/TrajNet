@@ -30,13 +30,11 @@ def get_model(root_dir: str, model_name: str) -> models.CellposeModel:
         - Custom model path: {root_dir}/cellpose/annotated/ckpts/models/
         - Pretrained models loaded from cellpose's default model directory
     """
-    print(f"Loading model {model_name}")
     if model_name == "cyto_retrained":
-        model_path = os.path.join(root_dir, "cellpose", "annotated", "ckpts",
-                                  "models", "cellpose_retrained_sgd.pth")
+        model_path = "./segmenter/cellpose_retrained_sgd.pth"
     else:
         model_path = os.fspath(models.MODEL_DIR.joinpath(model_name))
-
+    print(f"Loading model from {model_path}")
     return models.CellposeModel(gpu=torch.cuda.is_available(),
                                 pretrained_model=model_path)
 
@@ -197,8 +195,9 @@ def segment_videos(root_dir: str,
         - Results organized by model name and video ID
     """
     # Get list of video folders
-    vid_folders = [f.name for f in os.scandir(os.path.join(root_dir, "dataset", "imgs"))
-                   if f.is_dir()]
+    # vid_folders = [f.name for f in os.scandir(os.path.join(root_dir, "dataset", "imgs"))
+    #                if f.is_dir()]
+    vid_folders = ["04_3"]
 
     # Initialize model once for all videos
     model = get_model(root_dir, model_name)
@@ -213,5 +212,5 @@ def segment_videos(root_dir: str,
 
 if __name__ == "__main__":
     root_dir = '/Users/lxfhfut/Dropbox/Garvan/CBVCC/'
-    out_dir = '/Users/lxfhfut/Dropbox/Garvan/CBVCC/dataset/trks/'
-    segment_videos(root_dir, out_dir, "cytotorch_0")
+    out_dir = "/Users/lxfhfut/Desktop/test/"  # './dataset/trks/'
+    segment_videos(root_dir, out_dir, "cyto_retrained")

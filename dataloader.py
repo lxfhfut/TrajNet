@@ -37,7 +37,7 @@ class TrajPointDataset(Dataset):
         """
     def __init__(self,
                  data_dir: str,
-                 split: str = "training",
+                 split: str = "train",
                  max_length: int = 20,
                  augment: bool = False) -> None:
         """Initialize dataset with specified parameters."""
@@ -56,8 +56,7 @@ class TrajPointDataset(Dataset):
             self.max_points_to_add = 5
 
         # Load data
-        annotations = pd.read_csv(osp.join(osp.dirname(osp.dirname(data_dir)),
-                                           "train.csv" if split == "training" else "test.csv"))
+        annotations = pd.read_csv(osp.join(osp.dirname(osp.dirname(data_dir)), f"{split}.csv"))
         vids = [f.name for f in os.scandir(data_dir) if f.is_dir()]
         video_data = []
         labels = []

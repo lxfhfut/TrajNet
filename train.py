@@ -102,13 +102,13 @@ def evaluate_model(model: VideoClassifier,
     with torch.no_grad():
         for padded_trajectories, traj_lengths, video_lengths, batch_labels, video_ids in dataloader:
             outputs = model((padded_trajectories, traj_lengths, video_lengths))
-            loss = criterion(outputs.squeeze(), batch_labels.float())
+            loss = criterion(torch.atleast_1d(outputs.squeeze()), batch_labels.float())
             total_loss += loss.item()
             
             # Convert outputs to predictions
             preds = (outputs.squeeze() >= 0.5).float()
-            all_preds.extend(preds.cpu().numpy())
-            all_labels.extend(batch_labels.cpu().numpy())
+            all_preds.extend(np.atleast_1d(preds.cpu().numpy()))
+            all_labels.extend(np.atleast_1d(batch_labels.cpu().numpy()))
     
     # Calculate metrics
     metrics = {
@@ -177,10 +177,10 @@ def train_model(model: VideoClassifier,
         weight_decay=config['weight_decay']
     )
     # scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', patience=10, factor=0.8)
-    scheduler = torch.optim.lr_scheduler.OneCycleLR(
-        optimizer, learning_rate,
-        epochs=num_epochs, steps_per_epoch=len(train_loader))
-    # scheduler = torch.optim.lr_scheduler.CyclicLR(optimizer, base_lr=0.0001, max_lr=0.05, mode='exp_range')
+    # scheduler = torch.optim.lr_scheduler.OneCycleLR(
+    #     optimizer, learning_rate,
+    #     epochs=num_epochs, steps_per_epoch=len(train_loader))
+    scheduler = torch.optim.lr_scheduler.CyclicLR(optimizer, base_lr=0.0001, max_lr=0.05, mode='exp_range')
     visualizer = TrainingVisualizer(num_epochs)
     best_accuracy = 0
     best_model_state = None

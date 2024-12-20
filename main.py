@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 import cv2
 import torch
+from glob import glob
 from tqdm import tqdm
 from pathlib import Path
 from cellpose import models
@@ -11,7 +12,7 @@ from torch.utils.data import DataLoader
 from dataloader import TrajPointDataset
 from model import VideoClassifier
 from train import train_model
-from evaluate import predict_and_save, calculate_metrics, parse_csv
+from evaluate import evaluate_and_save, predict_and_save, calculate_metrics, parse_csv
 from csbdeep.io import save_tiff_imagej_compatible
 from track import features_from_masks, tracking
 from utils import vis_tracks
@@ -73,13 +74,13 @@ def main():
         help="Batch size for training"
     )
 
-    # Test mode parser
-    test_parser = subparsers.add_parser('predict', help='Test for a single video')
+    # Predict mode parser
+    test_parser = subparsers.add_parser('predict', help='Predict for videos')
     test_parser.add_argument(
-        '--video_path',
+        '--root_dir',
         type=Path,
         required=True,
-        help='Path to the video to be classified'
+        help='Root directory where data is stored'
     )
 
     test_parser.add_argument(
@@ -102,7 +103,7 @@ def main():
         type=Path,
         default=None,
         required=False,
-        help='The directory used to store tracking results'
+        help='The directory used to store prediction results'
     )
 
     # Evaluate mode parser
@@ -132,7 +133,7 @@ def main():
     eval_parser.add_argument(
         '--segmenter',
         type=str,
-        default="cytotorch_0",
+        default="cyto_retrained",
         required=False,
         help="Cellpose model used for segmentation"
     )
@@ -150,28 +151,38 @@ def main():
     # Execute the appropriate function based on the mode
     if args.mode == 'train':
         data_dir = os.path.join(args.root_dir, "trks", args.segmenter)
-        train_dataset = TrajPointDataset(data_dir, split="training", augment=True)
+        train_dataset = TrajPointDataset(data_dir, split="train", augment=True)
         train_dataloader = DataLoader(train_dataset, batch_size=32, shuffle=True, collate_fn=train_dataset.collate_fn)
 
-        val_dataset = TrajPointDataset(data_dir, split="testing")
+        val_dataset = TrajPointDataset(data_dir, split="test_phase1")
         val_dataloader = DataLoader(val_dataset, batch_size=4, shuffle=False, collate_fn=val_dataset.collate_fn)
 
         model = VideoClassifier(n_features=64, max_sequence_length=20, sample_attention="single")
         best_model = train_model(model, train_dataloader, val_dataloader,
                                  num_epochs=args.num_epochs,
-                                 learning_rate=args.learning_rate)
+                                 learning_rate=args.learning_rate,
+                                 save_dir=args.ckpt_dir)
     elif args.mode == 'evaluate':
         print(f"Evaluate with segmenter {args.segmenter}")
         data_dir = os.path.join(args.root_dir, "trks", args.segmenter)
-        tst_dataset = TrajPointDataset(data_dir, split="testing")
+        tst_dataset = TrajPointDataset(data_dir, split="test_phase1")
         tst_dataloader = DataLoader(tst_dataset, batch_size=4, shuffle=False, collate_fn=tst_dataset.collate_fn)
-        best_model = VideoClassifier(n_features=64, max_sequence_length=20, sample_attention="single")
-        best_model.load_state_dict(torch.load(args.model_path, weights_only=True)["model_state_dict"])
+        best_models = []
+        if Path(args.model_path).is_dir():
+            model_paths = glob(os.path.join(args.model_path, "*.pt"))
+            for model_path in model_paths:
+                best_model = VideoClassifier(n_features=64, max_sequence_length=20, sample_attention="single")
+                best_model.load_state_dict(torch.load(model_path, weights_only=True)["model_state_dict"])
+                best_models.append(best_model)
+        else:
+            best_model = VideoClassifier(n_features=64, max_sequence_length=20, sample_attention="single")
+            best_model.load_state_dict(torch.load(args.model_path, weights_only=True)["model_state_dict"])
+            best_models.append(best_model)
 
-        predict_and_save(best_model,
-                         tst_dataloader,
-                         os.path.join(args.save_dir, "preds.csv"))
-        ground_truth_file = os.path.join(args.root_dir, "test.csv")
+        evaluate_and_save(best_models,
+                          tst_dataloader,
+                          os.path.join(args.save_dir, "preds.csv"))
+        ground_truth_file = os.path.join(args.root_dir, "test_phase1.csv")
         predictions_file = os.path.join(args.save_dir, "preds.csv")
 
         ground_truth = parse_csv(ground_truth_file)
@@ -181,114 +192,25 @@ def main():
         for k, v in eval_results.items():
             print(f"{k}: {v:.4f}")
     elif args.mode == 'predict':
-        video_path = Path(args.video_path)
-        vid = video_path.stem
-        video = cv2.VideoCapture(video_path)
-        frames = []
-        while video.isOpened():
-            ret, frame = video.read()
-            if not ret:
-                break
-            frames.append(frame[..., 1] if len(frame.shape) > 1 else frame)
-        imgs = np.asarray(frames)
-
-        save_dir = Path(args.save_dir) / vid if args.save_dir else video_path.parent / vid
-        save_dir.mkdir(parents=True, exist_ok=True)
-        save_tiff_imagej_compatible(os.path.join(save_dir, vid + '_imgs.tif'), imgs, axes='TYX')
-
-        model_path = Path.cwd() / "segmenter" / "cellpose_retrained_sgd.pth" \
-            if args.segmenter == "cyto_retrained" else os.fspath(models.MODEL_DIR.joinpath(args.segmenter))
-
-        model = models.CellposeModel(gpu=torch.cuda.is_available(),
-                                     pretrained_model=str(model_path),
-                                     model_type=None if args.segmenter == "cyto_retrained" else "cyto")
-        masks = np.zeros_like(imgs)
-        for t in (pbar := tqdm(range(imgs.shape[0]))):
-            pbar.set_description(f"Segmenting {t}/{imgs.shape[0]} "
-                                 f"frame with {args.segmenter}")
-            img = imgs[t, ...]
-            if args.segmenter == "cyto_retrained":
-                labels = model.eval(img,
-                                    channels=[0, 0],
-                                    cellprob_threshold=0,
-                                    min_size=20)[0]
-            else:
-                labels = model.eval(img,
-                                    channels=[0, 0],
-                                    diameter=5,
-                                    cellprob_threshold=0,
-                                    min_size=20)[0]
-            masks[t] = labels
-        save_tiff_imagej_compatible(os.path.join(save_dir, vid + '_msks.tif'), masks, axes='TYX')
-        imgs_path = os.path.join(save_dir, vid + '_imgs.tif')
-        msks_path = os.path.join(save_dir, vid + '_msks.tif')
-
-        print("Tracking cells...")
-        df = features_from_masks(imgs_path, msks_path, int_thres=50, sz_thres=50)
-        if not df.empty:
-            trajs = tracking(df, os.path.join(save_dir, f"{vid}_track_trajectories.csv"),
-                             max_gap=20, min_len=3, min_int=50)
-            if not trajs.empty:
-                viewer = vis_tracks(save_dir.parent, vid, track_ids=None)
-                save_napari_animation(viewer, os.path.join(save_dir, vid + f"_{args.segmenter}.mp4"), fps=5)
-                viewer.close()
-                print("Tracking results have been save in " +
-                      f"{os.path.join(save_dir, f'{vid}_track_trajectories.csv')}")
-            else:
-                print("No cells on interest present in the video, "
-                      "classifying the video as Class 0!")
-                return
+        print(f"Predict with segmenter {args.segmenter}")
+        data_dir = os.path.join(args.root_dir, "trks", args.segmenter)
+        tst_dataset = TrajPointDataset(data_dir, split="predict")
+        tst_dataloader = DataLoader(tst_dataset, batch_size=4, shuffle=False, collate_fn=tst_dataset.collate_fn)
+        best_models = []
+        if Path(args.model_path).is_dir():
+            model_paths = glob(os.path.join(args.model_path, "*.pt"))
+            for model_path in model_paths:
+                best_model = VideoClassifier(n_features=64, max_sequence_length=20, sample_attention="single")
+                best_model.load_state_dict(torch.load(model_path, weights_only=True)["model_state_dict"])
+                best_models.append(best_model)
         else:
-            print("No cells on interest present in the video, "
-                  "classifying the video as Class 0!")
-            return
+            best_model = VideoClassifier(n_features=64, max_sequence_length=20, sample_attention="single")
+            best_model.load_state_dict(torch.load(args.model_path, weights_only=True)["model_state_dict"])
+            best_models.append(best_model)
 
-        print("Classifying...")
-        best_model = VideoClassifier(n_features=64, max_sequence_length=20, sample_attention="single")
-        best_model.load_state_dict(torch.load(args.model_path, weights_only=True)["model_state_dict"])
-        best_model.eval()
-
-        data = pd.read_csv(os.path.join(save_dir, f"{vid}_track_trajectories.csv"))
-        data.replace([np.inf, -np.inf], 0, inplace=True)
-        tracks_data = data.loc[:, ['particle', 'frame', 'x', 'y', 'area']]
-        track_ids = tracks_data['particle'].unique()
-
-        video_trajs = []
-        track_trajs = []
-        for track_id in track_ids:
-            track = tracks_data.loc[tracks_data['particle'] == track_id].sort_values(by=['frame'])
-            pos_idx = track.columns.get_indexer(['frame', 'x', 'y'])
-            track_trajs.append(torch.tensor(track.iloc[:, pos_idx].values))
-        video_trajs.append(track_trajs)
-
-        padded_trajectories = []
-        traj_lengths = []
-        video_lengths = torch.tensor([len(traj_list) for traj_list in video_trajs])
-
-        for video_trajs in video_trajs:
-            # Get lengths of each trajectory in this video
-            lengths = torch.tensor([len(traj) for traj in video_trajs])
-
-            # Create padded tensor for this video's trajectories
-            n_trajs = len(video_trajs)
-            padded = torch.zeros(n_trajs, 20, 3)
-
-            # Fill in trajectories
-            for i, traj in enumerate(video_trajs):
-                length = lengths[i]
-                padded[i, :length] = traj[:20]  # Truncate if longer than max_length
-                padded[i, length:] = traj[length - 1]
-
-            padded_trajectories.append(padded)
-            traj_lengths.append(lengths)
-
-        with torch.no_grad():
-            outputs = best_model((padded_trajectories, traj_lengths, video_lengths))
-
-            # Convert outputs to predictions
-            output = torch.atleast_1d(outputs.squeeze())
-            pred = int((output >= 0.5).float().cpu().numpy()[0])
-            print(f"Video {vid} is classified as Class {pred}.")
+        predict_and_save(best_models,
+                         tst_dataloader,
+                         os.path.join(args.save_dir, "preds.csv"))
 
 
 if __name__ == '__main__':

@@ -1,6 +1,6 @@
 # Method
 
-We present a trajectory-based approach for analyzing and classifying cellular motion patterns in intravital microscopy videos. Our method consists of several key components: cell tracking, feature extraction using a convolutional neural network, attention-based trajectory selection, and classification. The method is designed to be robust to tracking errors while capturing essential motion characteristics.
+We present a trajectory-based approach for analyzing and classifying cellular motion patterns in intravital microscopy videos. Our method consists of several key components: cell tracking, feature extraction using a convolutional neural network, an attention-based trajectory selection module, and a MLP-based classifier. The method is designed to be robust to tracking errors while capturing essential motion characteristics.
 
 ## Cell Tracking and Trajectory Extraction
 

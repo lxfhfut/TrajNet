@@ -188,9 +188,76 @@ def calculate_metrics(ground_truth: Dict[str, Union[float, int]],
     }
 
 
-def predict_and_save(model: VideoClassifier,
-                    dataloader: DataLoader,
-                    csv_file: str) -> Dict[str, float]:
+def predict_and_save(best_models: List[VideoClassifier],
+            dataloader: DataLoader,
+            csv_file: str) -> Dict[str, float]:
+    """
+    Generate predictions using the model and save results to a CSV file.
+
+    Makes predictions on the provided data, handles videos without tracking results,
+    saves predictions to a CSV file, and calculates performance metrics.
+
+    Args:
+        model (VideoClassifier): The trained model to use for predictions.
+        dataloader (DataLoader): DataLoader containing the test data.
+        csv_file (str): Path where the predictions CSV should be saved.
+
+    Returns:
+        predictions
+
+    Note:
+        - Videos without tracking results are assigned class '0'
+        - Prints details of incorrect predictions during evaluation
+        - Saves predictions in CSV format without headers
+        - Uses torch.no_grad() for efficient inference
+    """
+    for model in best_models:
+        model.eval()
+    all_vids = []
+    all_outs = []
+
+    with torch.no_grad():
+        for padded_trajectories, traj_lengths, video_lengths, batch_labels, video_ids in dataloader:
+            # Store outputs from each model
+            all_outputs = []
+
+            # Get predictions from each model
+            for best_model in best_models:
+                outputs = best_model((padded_trajectories, traj_lengths, video_lengths))
+                all_outputs.append(outputs)
+
+            # Stack outputs along a new dimension
+            stacked_outputs = torch.stack(all_outputs, dim=0)
+            outputs = torch.mean(stacked_outputs, dim=0)
+            # outputs = model((padded_trajectories, traj_lengths, video_lengths))
+
+            # Convert outputs to predictions
+            outputs = torch.atleast_1d(outputs.squeeze())
+            all_outs.extend(outputs.cpu().numpy())
+            all_vids.extend(video_ids)
+
+    # Add predictions for videos without tracking results, which will be classified as class '0'
+    test_df = pd.read_csv(os.path.join(os.path.dirname(os.path.dirname(dataloader.dataset.data_dir)), 'predict.csv'))
+    remaining_vids = set(test_df['id'].to_numpy()) - set(all_vids)
+    num_missing = 0
+    for r_vid in remaining_vids:
+        if r_vid not in all_vids:
+            all_vids.append(r_vid)
+            all_outs.append(0)
+            num_missing += 1
+    if num_missing:
+        print(f"Found {num_missing} missing videos, setting their class label to default {0}")
+
+    df = pd.DataFrame({"video": [vid+".avi" for vid in all_vids], "predict": all_outs})
+    df.to_csv(csv_file, header=False, index=False, float_format="%.3f")
+    print(f"Predictions have been save to {csv_file}")
+
+    return df
+
+
+def evaluate_and_save(best_models: List[VideoClassifier],
+                      dataloader: DataLoader,
+                      csv_file: str) -> Dict[str, float]:
     """
     Generate predictions using the model and save results to a CSV file.
 
@@ -215,7 +282,9 @@ def predict_and_save(model: VideoClassifier,
         - Saves predictions in CSV format without headers
         - Uses torch.no_grad() for efficient inference
     """
-    model.eval()
+    for model in best_models:
+        model.eval()
+
     all_preds = []
     all_labels = []
     all_vids = []
@@ -223,7 +292,19 @@ def predict_and_save(model: VideoClassifier,
 
     with torch.no_grad():
         for padded_trajectories, traj_lengths, video_lengths, batch_labels, video_ids in dataloader:
-            outputs = model((padded_trajectories, traj_lengths, video_lengths))
+            # Store outputs from each model
+            all_outputs = []
+
+            # Get predictions from each model
+            for best_model in best_models:
+                outputs = best_model((padded_trajectories, traj_lengths, video_lengths))
+                all_outputs.append(outputs)
+
+            # Stack outputs along a new dimension
+            stacked_outputs = torch.stack(all_outputs, dim=0)
+            outputs = torch.mean(stacked_outputs, dim=0)
+
+            # outputs = model((padded_trajectories, traj_lengths, video_lengths))
 
             # Convert outputs to predictions
             outputs = torch.atleast_1d(outputs.squeeze())
@@ -242,16 +323,16 @@ def predict_and_save(model: VideoClassifier,
                 print("-" * 30)
 
     # Add predictions for videos without tracking results, which will be classified as class '0'
-    test_df = pd.read_csv(os.path.join(os.path.dirname(os.path.dirname(dataloader.dataset.data_dir)), 'test.csv'))
+    test_df = pd.read_csv(os.path.join(os.path.dirname(os.path.dirname(dataloader.dataset.data_dir)), 'test_phase1.csv'))
     remaining_vids = set(test_df['id'].to_numpy()) - set(all_vids)
     num_missing = 0
     for r_vid in remaining_vids:
         if r_vid not in all_vids:
-            all_vids.extend(r_vid)
-            all_outs.extend(0)
+            all_vids.append(r_vid)
+            all_outs.append(0)
             num_missing += 1
     if num_missing:
-        print(f"Found {num_missing} videos, setting their class label to default {0}")
+        print(f"Found {num_missing} missing videos, setting their class label to default {0}")
 
     df = pd.DataFrame({"video": [vid+".avi" for vid in all_vids], "predict": all_outs})
     df.to_csv(csv_file, header=False, index=False, float_format="%.3f")
@@ -279,7 +360,7 @@ if __name__ == "__main__":
     # best_model = VideoClassifier(n_features=64, max_sequence_length=20, sample_attention="single")
     # best_model.load_state_dict(torch.load("ckpts/best_model_20241129_110427tick.pt", weights_only=True)["model_state_dict"])
     #
-    # predict_and_save(best_model, tst_dataloader, "results/preds.csv")
+    # evaluate_and_save(best_model, tst_dataloader, "results/preds.csv")
     #
     # missing_pred = 0
     # ground_truth_file = os.path.join(anno_dir, "test.csv")

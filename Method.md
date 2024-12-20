@@ -4,7 +4,7 @@ We present TrajNet, a trajectory-based approach for analyzing and classifying ce
 
 ## Cell Tracking and Trajectory Extraction
 
-The initial step involves tracking cells of interest across video frames. We utilized Cellpose for cell segmentation and combine it with trackpy/laptrack for trajectory generation. For computational efficiency and to reduce noise, we processed only the green channel of each video frame. This process generates $n_i$ trajectories for each video $i$, where each trajectory represents the temporal evolution of a cell's position. To ensure reliable tracking, we focused on cells with high intensity (>50) and substantial size (>50 pixels), which helps filter out potential segmentation and tracking errors.
+The initial step involves tracking cells of interest across video frames. We utilized a retrained Cellpose (retrained on training set based on the 'cytotorch_0' pretrained model) for cell segmentation and combine it with trackpy/laptrack for trajectory generation. For computational efficiency and to reduce noise, we processed only the green channel of each video frame. This process generates $n_i$ trajectories for each video $i$, where each trajectory represents the temporal evolution of a cell's position. To ensure reliable tracking, we focused on cells with high intensity (>50) and substantial size (>50 pixels), which helps filter out potential segmentation and tracking errors.
 
 ## Feature Extraction Network
 

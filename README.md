@@ -89,7 +89,7 @@ python main.py evaluate \
 
 Parameters:
 - `--root_dir`: Directory containing frames of videos to be evaluated
-- `--model_path`: Path to trained model checkpoint(s). All model checkpoints in the directory will be used if it is specified to a directory.
+- `--model_path`: Path to trained model checkpoint(s). All models in the directory will be used if it is specified to a directory.
 - `--save_dir`: Directory to save evaluation results (default: ./results)
 - `--segmenter`: Cellpose model for segmentation (default: cyto_retrained)
 - `--batch_size`: Evaluation batch size (default: 4)
@@ -100,15 +100,15 @@ Predict the class labels for videos in predict.csv under root_dir:
 
 ```bash
 python main.py predict \
-    --root_dir /path/to/video.avi \
-    --model_path ./models/model_2.pt \
+    --root_dir ./dataset \
+    --model_path ./models \
     --save_dir ./results \
-    --segmenter cytotorch_0
+    --segmenter cyto_retrained
 ```
 
 Parameters:
 - `--root_dir`: Directory containing frames of videos to be predicted
-- `--model_path`: Path to model used for prediction. All models will be used if it is a directory.
+- `--model_path`: Path to model used for prediction. All models will be used if it is specified as a directory.
 - `--save_dir`: Directory to save prediction results. It is a csv file ready for uploading to leaderboard.
 - `--segmenter`: Cellpose model for segmentation (default: cyto_retrained)
 Note that the 'action_label' column in the predict.csv is set to 0 before prediction.

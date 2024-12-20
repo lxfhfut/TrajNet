@@ -50,7 +50,7 @@ def main():
     train_parser.add_argument(
         '--segmenter',
         type=str,
-        default="cytotorch_0",
+        default="cyto_retrained",
         required=False,
         help="Cellpose model used for segmentation"
         )
@@ -86,7 +86,7 @@ def main():
     test_parser.add_argument(
         '--segmenter',
         type=str,
-        default="cytotorch_0",
+        default="cyto_retrained",
         required=False,
         help='Cellpose model for segmentation'
     )

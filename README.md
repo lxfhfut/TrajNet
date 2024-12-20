@@ -15,7 +15,7 @@ git clone https://github.com/lxfhfut/TrajNet.git
 cd TrajNet
 ```
 
-2. Create and activate the conda environment (<span style="color:green">cbvcc.yml for MacOS</span>, <span style="color:red">cbvcc_linux.yml for Linux</span>):
+2. Create and activate the conda environment ($${\color{red}cbvcc.yml for MacOS}$$, $${\color{green}cbvcc_linux.yml for Linux}$$):
 ```bash
 conda env create -f cbvcc.yml
 conda activate cbvcc

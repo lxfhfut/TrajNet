@@ -63,7 +63,7 @@ def main():
     train_parser.add_argument(
         '--learning_rate',
         type=float,
-        default=0.005,
+        default=0.01,
         help='Learning rate for training'
     )
     train_parser.add_argument(

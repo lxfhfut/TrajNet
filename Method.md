@@ -74,3 +74,4 @@ Despite relying on segmentation and tracking results, our method demonstrates ro
 1. Selective processing of high-quality cell tracks
 2. Attention mechanism's ability to focus on reliable trajectories
 3. Comprehensive augmentation strategy
+4. Model consensus by averaging the results from 3 models.

@@ -39,7 +39,7 @@ python main.py train \
 
 Parameters:
 - `--root_dir`: Directory containing training videos and annotations
-- `--ckpt_dir`: Directory to save model checkpoints (default: ./ckpts)
+- `--ckpt_dir`: Directory to save model checkpoints (default: ./models)
 - `--segmenter`: Cellpose model for segmentation (default: cyto_retrained)
 - `--batch_size`: Training batch size (default: 32)
 

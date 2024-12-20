@@ -195,9 +195,8 @@ def segment_videos(root_dir: str,
         - Results organized by model name and video ID
     """
     # Get list of video folders
-    # vid_folders = [f.name for f in os.scandir(os.path.join(root_dir, "dataset", "imgs"))
-    #                if f.is_dir()]
-    vid_folders = ["04_3"]
+    vid_folders = [f.name for f in os.scandir(os.path.join(root_dir, "dataset", "imgs"))
+                   if f.is_dir()]
 
     # Initialize model once for all videos
     model = get_model(root_dir, model_name)
@@ -211,6 +210,6 @@ def segment_videos(root_dir: str,
 
 
 if __name__ == "__main__":
-    root_dir = '/Users/lxfhfut/Dropbox/Garvan/CBVCC/'
-    out_dir = "/Users/lxfhfut/Desktop/test/"  # './dataset/trks/'
+    root_dir = "."
+    out_dir = './dataset/trks/'
     segment_videos(root_dir, out_dir, "cyto_retrained")

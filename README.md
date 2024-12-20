@@ -94,7 +94,7 @@ Parameters:
 - `--segmenter`: Cellpose model for segmentation (default: cyto_retrained)
 - `--batch_size`: Evaluation batch size (default: 4)
 
-### Predict Mode (Single Video)
+### Predict Mode
 
 Predict the class labels for videos in predict.csv under root_dir:
 

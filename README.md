@@ -70,7 +70,7 @@ where 'imgs' folder stores the frames of all videos, 'trks' folder stores the se
 'train.csv' contains the video ids and labels of the training dataset
 'test_phase1.csv' contains the video ids and labels of the 'test_phase1' dataset
 'predict.csv' contains the video ids and labels (set to 0) of the 'test_phase2' dataset. This will be used in 'predict mode' to predict the class label of corresponding videos.
-![Training Progress](./ckpts/training_results_20241129_104939.png)
+![Training Progress](./models/training_progress.png)
 
 ### Evaluation Mode
 

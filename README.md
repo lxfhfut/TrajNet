@@ -1,6 +1,6 @@
 # Cell Behavior Video Classification Challenge (CBVCC)
 
-A tool for analyzing and classifying cell behavior in microscopy videos. It performs cell segmentation, tracking, and classification using a combination of custom deep learning models.
+Repository of TrajNet for analyzing and classifying cell behavior in intravital microscopy videos. It performs cell segmentation, tracking, and classification using a combination of custom deep learning models.
 
 ## Installation
 
@@ -16,7 +16,7 @@ git clone https://github.com/lxfhfut/TrajNet.git
 cd TrajNet
 ```
 
-2. Create and activate the conda environment:
+2. Create and activate the conda environment (cbvcc.yml for MacOS, cbvcc_linux.yml for Linux):
 ```bash
 conda env create -f cbvcc.yml
 conda activate cbvcc
@@ -33,15 +33,15 @@ Train a new model on your dataset:
 ```bash
 python main.py train \
     --root_dir ./dataset \
-    --ckpt_dir ./ckpts \
-    --segmenter cytotorch_0 \
+    --ckpt_dir ./models \
+    --segmenter cy_retrained \
     --batch_size 32
 ```
 
 Parameters:
 - `--root_dir`: Directory containing training videos and annotations
 - `--ckpt_dir`: Directory to save model checkpoints (default: ./ckpts)
-- `--segmenter`: Cellpose model for segmentation (default: cytotorch_0)
+- `--segmenter`: Cellpose model for segmentation (default: cyto_retrained)
 - `--batch_size`: Training batch size (default: 32)
 
 
@@ -57,13 +57,13 @@ dataset/
 │       └── 000019.png
 │   └── 00_2/
 ├── trks/
-│   └── cytotorch_0/
+│   └── cyto_retrained/
 │       ├── 00_1/
 │       │   ├── video1_imgs.tif
 │       │   ├── video1_msks.tif
 │       │   └── video1_track_trajectories.csv
 │       └── 00_2/
-├── test.csv
+├── test_phase1.csv
 └── train.csv
 ```
 
@@ -76,17 +76,17 @@ Evaluate model performance on a test dataset:
 ```bash
 python main.py evaluate \
     --root_dir ./dataset \
-    --model_path ./ckpts/best_model.pt \
+    --model_path ./models/best_model.pt \
     --save_dir ./results \
-    --segmenter cytotorch_0 \
+    --segmenter cyto_retrained \
     --batch_size 4
 ```
 
 Parameters:
-- `--root_dir`: Directory containing test videos
-- `--model_path`: Path to trained model checkpoint
+- `--root_dir`: Directory containing frames of videos to be evaluated
+- `--model_path`: Path to trained model checkpoint. All model checkpoints will be used if it is a directory.
 - `--save_dir`: Directory to save evaluation results (default: ./results)
-- `--segmenter`: Cellpose model for segmentation (default: cytotorch_0)
+- `--segmenter`: Cellpose model for segmentation (default: cyto_retrained)
 - `--batch_size`: Evaluation batch size (default: 4)
 
 ### Predict Mode (Single Video)
@@ -96,28 +96,18 @@ Analyze and classify a single video:
 ```bash
 python main.py predict \
     --video_path /path/to/video.avi \
-    --model_path ./ckpts/best_model.pt \
+    --model_path ./models/best_model.pt \
     --save_dir ./results \
     --segmenter cytotorch_0
 ```
 
 Parameters:
-- `--video_path`: Path to input video file
-- `--model_path`: Path to trained model checkpoint
-- `--save_dir`: Directory to save results (default: same as video directory)
-- `--segmenter`: Cellpose model for segmentation (default: cytotorch_0)
-
-
-## Output Files
-
-For each processed video, the program generates:
-- `_imgs.tif`: Original video frames
-- `_msks.tif`: Segmentation masks
-- `_track_trajectories.csv`: Cell tracking data
-- `_{segmenter}.mp4`: Visualization of tracked cells
-- For evaluation: `preds.csv` with classification results
+- `--root_dir`: Directory containing frames of videos to be predicted
+- `--model_path`: Path to model used for prediction. All models will be used if it is a directory.
+- `--save_dir`: Directory to save prediction results. It is a csv file ready for uploading to leaderboard.
+- `--segmenter`: Cellpose model for segmentation (default: cyto_retrained)
 
 ## Notes
 
-- The default segmentation model is 'cytotorch_0'. Other Cellpose models can be specified using the `--segmenter` argument.
+- The default segmentation model is 'cyto_retrained'. It is a cellpose model based on the "cytotorch_0" pretrained model and was retrained on the **Training** set of this challenge. Note that we did not the videos of test_phase1 and test_phase2 for retraining the segmentation model.
 - GPU acceleration is automatically used if available.

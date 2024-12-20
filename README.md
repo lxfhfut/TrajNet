@@ -33,7 +33,7 @@ Train a new model on your dataset:
 python main.py train \
     --root_dir ./dataset \
     --ckpt_dir ./models \
-    --segmenter cy_retrained \
+    --segmenter cyto_retrained \
     --batch_size 32
 ```
 

@@ -91,11 +91,11 @@ Parameters:
 
 ### Predict Mode (Single Video)
 
-Analyze and classify a single video:
+Predict the class labels for videos in predict.csv under root_dir:
 
 ```bash
 python main.py predict \
-    --video_path /path/to/video.avi \
+    --root_dir /path/to/video.avi \
     --model_path ./models/best_model.pt \
     --save_dir ./results \
     --segmenter cytotorch_0
@@ -106,7 +106,7 @@ Parameters:
 - `--model_path`: Path to model used for prediction. All models will be used if it is a directory.
 - `--save_dir`: Directory to save prediction results. It is a csv file ready for uploading to leaderboard.
 - `--segmenter`: Cellpose model for segmentation (default: cyto_retrained)
-
+Note that the 'action_label' column in the predict.csv is set to 0 before prediction.
 ## Notes
 
 - The default segmentation model is 'cyto_retrained'. It is a cellpose model based on the "cytotorch_0" pretrained model and was retrained on the **Training** set of this challenge. Note that we did not the videos of test_phase1 and test_phase2 for retraining the segmentation model.

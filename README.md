@@ -81,7 +81,7 @@ Evaluate model performance on a test dataset:
 ```bash
 python main.py evaluate \
     --root_dir ./dataset \
-    --model_path ./models/best_model.pt \
+    --model_path ./models/model_2.pt \
     --save_dir ./results \
     --segmenter cyto_retrained \
     --batch_size 4
@@ -101,7 +101,7 @@ Predict the class labels for videos in predict.csv under root_dir:
 ```bash
 python main.py predict \
     --root_dir /path/to/video.avi \
-    --model_path ./models/best_model.pt \
+    --model_path ./models/model_2.pt \
     --save_dir ./results \
     --segmenter cytotorch_0
 ```

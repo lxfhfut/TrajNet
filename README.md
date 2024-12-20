@@ -87,7 +87,7 @@ python main.py evaluate \
 
 Parameters:
 - `--root_dir`: Directory containing frames of videos to be evaluated
-- `--model_path`: Path to trained model checkpoint. All model checkpoints will be used if it is a directory.
+- `--model_path`: Path to trained model checkpoint(s). All model checkpoints in the directory will be used if it is specified to a directory.
 - `--save_dir`: Directory to save evaluation results (default: ./results)
 - `--segmenter`: Cellpose model for segmentation (default: cyto_retrained)
 - `--batch_size`: Evaluation batch size (default: 4)
@@ -112,5 +112,5 @@ Parameters:
 Note that the 'action_label' column in the predict.csv is set to 0 before prediction.
 ## Notes
 
-- The default segmentation model is 'cyto_retrained'. It is a cellpose model based on the "cytotorch_0" pretrained model and was retrained on the **Training** set of this challenge. Note that we did not the videos of test_phase1 and test_phase2 for retraining the segmentation model.
+- The default segmentation model is 'cyto_retrained'. It is a cellpose model based on the "cytotorch_0" pretrained model and was retrained on the **Training** set of this challenge. Note that we did not use any videos from test_phase1 and test_phase2 for retraining this segmentation model!
 - GPU acceleration is automatically used if available.

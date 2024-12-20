@@ -1,7 +1,6 @@
-# Cell Behavior Video Classification Challenge (CBVCC)
+# TrajNet
 
-Repository of TrajNet for analyzing and classifying cell behavior in intravital microscopy videos. It performs cell segmentation, tracking, and classification using a combination of custom deep learning models.
-
+This repository contains the code for TrajNet, a model designed for classifying cell behavior in intravital microscopy data as set out in Cell Behavior Video Classification Challenge (CBVCC). It offers an integrated pipeline that performs cell segmentation, tracks cell movement over time, and classifies different types of cellular behaviors. 
 ## Installation
 
 ### Prerequisites

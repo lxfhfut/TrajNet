@@ -25,7 +25,7 @@ conda activate cbvcc
 
 The program supports three modes of operation: train, evaluate, and predict.
 
-### Training Mode
+### Train Mode
 
 Train a new model on your dataset:
 
@@ -74,7 +74,7 @@ where \
 -`predict.csv` contains the video ids and labels (set to 0) of the 'test_phase2' dataset. This will be used in 'predict mode' to predict the class label of corresponding videos.\
 ![Training Progress](./models/training_progress.png)
 
-### Evaluation Mode
+### Evaluate Mode
 
 Evaluate model performance on a test dataset:
 

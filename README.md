@@ -1,6 +1,6 @@
 # TrajNet
 
-This repository contains the code for TrajNet, a model designed for classifying cell behavior in intravital microscopy data as set out in Cell Behavior Video Classification Challenge (CBVCC). It offers an integrated pipeline that performs cell segmentation, tracks cell movement over time, and classifies different types of cellular behaviors. 
+This repository contains the code for TrajNet, a model designed for classifying cell behavior in intravital microscopy data as set out in Cell Behavior Video Classification Challenge ([CBVCC](https://www.immunemap.org/index.php/challenges-menu/cbvcc)). It offers an integrated pipeline that performs cell segmentation, tracks cell movement over time, and classifies different types of cellular behaviors. Please star if you find this repository useful. Thank you!
 ## Installation
 
 ### Prerequisites
